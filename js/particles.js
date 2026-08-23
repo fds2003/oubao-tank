@@ -74,21 +74,25 @@ class Particles{
   this.spark(x,y,'#c7f3ff',10,160);
   this.flash(x,y,14);
  }
- update(dt){
-  for(const p of this.list){
-   p.t+=dt;
-   switch(p.k){
-    case'sq':p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=150*dt;p.rot+=p.vr*dt;break;
-    case'spark':p.x+=p.vx*dt;p.y+=p.vy*dt;p.vx*=Math.pow(0.02,dt);p.vy*=Math.pow(0.02,dt);break;
-    case'smoke':p.x+=p.vx*dt;p.y+=p.vy*dt;p.r+=p.gr*dt;break;
-    case'text':p.y+=p.vy*dt;break;
-    case'snow':p.y+=p.vy*dt;p.x+=Math.sin(p.t*5+p.sd)*16*dt;break;
-    case'star':p.x+=p.vx*dt;p.y+=p.vy*dt;p.vx*=Math.pow(0.06,dt);p.vy*=Math.pow(0.06,dt);p.rot+=p.vr*dt;break;
-    case'trail':p.x+=p.vx*dt;p.y+=p.vy*dt;p.r+=p.gr*dt;break;
+  update(dt){
+   for(const p of this.list){
+    p.t+=dt;
+    switch(p.k){
+     case'sq':p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=150*dt;p.rot+=p.vr*dt;break;
+     case'spark':p.x+=p.vx*dt;p.y+=p.vy*dt;p.vx*=Math.pow(0.02,dt);p.vy*=Math.pow(0.02,dt);break;
+     case'smoke':p.x+=p.vx*dt;p.y+=p.vy*dt;p.r+=p.gr*dt;break;
+     case'text':p.y+=p.vy*dt;break;
+     case'snow':p.y+=p.vy*dt;p.x+=Math.sin(p.t*5+p.sd)*16*dt;break;
+     case'star':p.x+=p.vx*dt;p.y+=p.vy*dt;p.vx*=Math.pow(0.06,dt);p.vy*=Math.pow(0.06,dt);p.rot+=p.vr*dt;break;
+     case'trail':p.x+=p.vx*dt;p.y+=p.vy*dt;p.r+=p.gr*dt;break;
+    }
    }
+   let w=0;
+   for(let r=0;r<this.list.length;r++){
+    if(this.list[r].t<this.list[r].life)this.list[w++]=this.list[r];
+   }
+   this.list.length=w;
   }
-  this.list=this.list.filter(p=>p.t<p.life);
- }
  draw(ctx){
   for(const p of this.list){
    const a=Math.max(0,1-p.t/p.life);

@@ -6,7 +6,7 @@ class AI{
   this.wantedDir=null;this.wantsFire=false;
  }
  getInterval(){
-  if(this.diff==='easy')return rand(1.6,2.6);
+  if(this.diff==='easy')return rand(1.0,1.8);
   if(this.diff==='normal')return rand(0.8,1.5);
   return rand(0.35,0.75);
  }
@@ -25,7 +25,7 @@ class AI{
   if(this.diff==='hard')this.dodgeBullets();
  }
  chooseDir(){
-  let p=this.game.tanks[0];
+  let p=null;
   if(this.game.gameMode===2){
    let bestD=Infinity;
    for(const t of this.game.tanks){
@@ -33,11 +33,15 @@ class AI{
     const d=Math.hypot(t.x-this.tank.x,t.y-this.tank.y);
     if(d<bestD){bestD=d;p=t;}
    }
+  }else{
+   const t=this.game.tanks[0];
+   if(t.alive)p=t;
   }
   if(this.diff==='easy'){
-   if(chance(0.4))this.wantedDir=['up','down','left','right'][randInt(0,3)];
+   if(p&&chance(0.4))this.wantedDir=this.dirTo(p);
+   else this.wantedDir=['up','down','left','right'][randInt(0,3)];
   }else{
-   if(this.hasLOS(p))this.wantedDir=this.dirTo(p);
+   if(p&&this.hasLOS(p))this.wantedDir=this.dirTo(p);
    else if(chance(0.35))this.wantedDir=['up','down','left','right'][randInt(0,3)];
   }
   if(this.isBlocked(this.wantedDir))this.wantedDir=this.openDir();

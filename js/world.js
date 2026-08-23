@@ -2,6 +2,10 @@
 class World{
  constructor(def){
   Object.assign(this,buildMap(def));
+  this.grassCells=[];
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+   if(this.grid[r][c]==='G')this.grassCells.push({c,r});
+  }
  }
  inB(c,r){return c>=0&&c<COLS&&r>=0&&r<ROWS;}
  at(c,r){return this.inB(c,r)?this.grid[r][c]:'#';}
@@ -71,15 +75,14 @@ class World{
   ctx.stroke();
  }
  drawGrass(ctx){
-  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
-   if(this.grid[r][c]!=='G')continue;
-   const x=c*CELL+CELL/2,y=r*CELL+CELL/2;
+  for(const gc of this.grassCells){
+   const x=gc.c*CELL+CELL/2,y=gc.r*CELL+CELL/2;
    const cols=['#2e8f47','#38a754','#27793b'];
    for(let i=0;i<3;i++){
     ctx.globalAlpha=0.92;
     ctx.fillStyle=cols[i];
     ctx.beginPath();
-    ctx.arc(x+(cellRand(c,r,i)-0.5)*22,y+(cellRand(c,r,i+3)-0.5)*22,11+i*2.5,0,7);
+    ctx.arc(x+(cellRand(gc.c,gc.r,i)-0.5)*22,y+(cellRand(gc.c,gc.r,i+3)-0.5)*22,11+i*2.5,0,7);
     ctx.fill();
    }
    ctx.globalAlpha=1;

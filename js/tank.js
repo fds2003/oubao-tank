@@ -94,27 +94,28 @@ class Tank{
   this.x=nx;this.y=ny;
   return true;
  }
- fire(){
-  const d=this.dir;
-  const nx=this.x+d.x*(TANK_HALF+9),ny=this.y+d.y*(TANK_HALF+9);
-  const heavy=this.buff.power>0,rapid=this.buff.rapid>0,scatter=this.buff.scatter>0;
-  if(scatter){
-   const baseAngle=Math.atan2(d.y,d.x);
-   const spread=[-0.35,0,0.35];
-   for(const off of spread){
-    const a=baseAngle+off;
-    const bx=this.x+Math.cos(a)*(TANK_HALF+9);
-    const by=this.y+Math.sin(a)*(TANK_HALF+9);
-    const dirKey2=off===0?this.dirKey:(off<0?'left':'right');
-    this.game.bullets.push(new Bullet(this,bx,by,dirKey2,{damage:NORMAL_DMG,big:false,angle:a}));
+  fire(){
+   const d=this.dir;
+   const nx=this.x+d.x*(TANK_HALF+9),ny=this.y+d.y*(TANK_HALF+9);
+   const heavy=this.buff.power>0,rapid=this.buff.rapid>0,scatter=this.buff.scatter>0,mega=this.buff.mega>0;
+   const megaDmg=mega?1.2:1;
+   if(scatter){
+    const baseAngle=Math.atan2(d.y,d.x);
+    const spread=[-0.35,0,0.35];
+    for(const off of spread){
+     const a=baseAngle+off;
+     const bx=this.x+Math.cos(a)*(TANK_HALF+9);
+     const by=this.y+Math.sin(a)*(TANK_HALF+9);
+     const dirKey2=off===0?this.dirKey:(off<0?'left':'right');
+     this.game.bullets.push(new Bullet(this,bx,by,dirKey2,{damage:NORMAL_DMG*megaDmg,big:false,angle:a}));
+    }
+    this.cool=RAPID_CD;this.recoil=4;
+   }else{
+    this.game.bullets.push(new Bullet(this,nx,ny,this.dirKey,{
+     damage:(heavy?HEAVY_DMG:NORMAL_DMG)*megaDmg,big:heavy||rapid
+    }));
+    this.cool=rapid?RAPID_CD:COOLDOWN;this.recoil=heavy?6:4;
    }
-   this.cool=RAPID_CD;this.recoil=4;
-  }else{
-   this.game.bullets.push(new Bullet(this,nx,ny,this.dirKey,{
-    damage:heavy?HEAVY_DMG:NORMAL_DMG,big:heavy||rapid
-   }));
-   this.cool=rapid?RAPID_CD:COOLDOWN;this.recoil=heavy?6:4;
-  }
   this.stats.shots++;
   this.game.parts.muzzleBlast(nx,ny,this.dirKey,this.color,heavy||scatter);
   this.game.addShake(heavy?3.5:1.8);
@@ -171,12 +172,13 @@ class Tank{
    }
    if(want&&want!==this.dirKey)this.turn(want);
    let moved=false;
-   if(want){
-    const d=DIRS[want];
-    const spd=this.buff.speed>0?SPEED_BOOSTED:TANK_SPEED;
-    moved=this.tryMove(d.x*spd*dt,d.y*spd*dt);
-   }
-   if(moved)this.tread+=dt*(this.buff.speed>0?SPEED_BOOSTED:TANK_SPEED);
+    if(want){
+     const d=DIRS[want];
+     let spd=this.buff.speed>0?SPEED_BOOSTED:TANK_SPEED;
+     if(this.buff.slow>0)spd*=0.4;
+     moved=this.tryMove(d.x*spd*dt,d.y*spd*dt);
+    }
+    if(moved)this.tread+=dt*(this.buff.speed>0?SPEED_BOOSTED:TANK_SPEED);
     const cap=(this.buff.rapid>0?RAPID_BULLETS:MAX_BULLETS)-(this.buff.scatter>0?2:0);
    if(firing&&this.cool<=0){
     let mine=0;

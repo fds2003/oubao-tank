@@ -181,10 +181,18 @@ function applyPower(game,tank,type){
  const info=POWER_TYPES[type];
  if(type==='freeze'){
   if(game.gameMode===0||game.gameMode===2){
+   let count=0;
    for(const t of game.tanks){
     if(t!==tank&&t.alive){
      if(game.gameMode===2&&t.ai===null)continue;
-     t.buff.freeze=2.2;t.buffMax.freeze=2.2;
+     count++;
+    }
+   }
+   const dur=count>0?Math.max(0.6,2.2/Math.sqrt(count)):0;
+   for(const t of game.tanks){
+    if(t!==tank&&t.alive){
+     if(game.gameMode===2&&t.ai===null)continue;
+     t.buff.freeze=dur;t.buffMax.freeze=dur;
     }
    }
    AudioSys.freeze();
@@ -224,14 +232,16 @@ function applyPower(game,tank,type){
  if(type==='emp'){
   let count=0;
   for(const t of game.tanks){
-   if(t!==tank&&t.alive&&t.buff.shield>0){
-    t.buff.shield=0;count++;
+   if(t!==tank&&t.alive){
+    if(t.buff.shield>0){t.buff.shield=0;count++;}
+    t.buff.speed=0;t.buffMax.speed=0;
+    t.buff.slow=3;t.buffMax.slow=3;
    }
   }
   AudioSys.emp();
   game.parts.ring(tank.x,tank.y,'#22eeff',60,4,0.45);
   game.parts.spark(tank.x,tank.y,'#88eeff',16,180);
-  game.parts.text(tank.x,tank.y-30,count>0?'护盾已摧毁！':'EMP冲击！',info.color);
+  game.parts.text(tank.x,tank.y-30,count>0?'护盾摧毁+减速！':'EMP减速！',info.color);
   return;
  }
  if(type==='shield'||type==='speed'||type==='rapid'||type==='power'||type==='ghost'||type==='scatter'){
