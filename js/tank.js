@@ -45,6 +45,7 @@ function separateTanks(a,b){
  const dx=b.x-a.x,dy=b.y-a.y;
  const ox=TANK_SIZE*1.1-Math.abs(dx),oy=TANK_SIZE*1.1-Math.abs(dy);
  if(ox<=0||oy<=0)return;
+ const ax=a.x,ay=a.y,bx=b.x,by=b.y;
  if(ox<oy){
   const s=(dx>=0?1:-1)*ox/2;
   a.x-=s;b.x+=s;
@@ -56,6 +57,7 @@ function separateTanks(a,b){
  a.y=clamp(a.y,TANK_HALF,FIELD_H-TANK_HALF);
  b.x=clamp(b.x,TANK_HALF,FIELD_W-TANK_HALF);
  b.y=clamp(b.y,TANK_HALF,FIELD_H-TANK_HALF);
+ if(!a.fits(a.x,a.y)||!b.fits(b.x,b.y)){a.x=ax;a.y=ay;b.x=bx;b.y=by;}
 }
 class Tank{
  constructor(id,cfg,game){
@@ -70,15 +72,15 @@ class Tank{
   this.buffMax={shield:1,speed:1,rapid:1,power:1,freeze:1,ghost:1,mega:1,scatter:1};
  }
  get dir(){return DIRS[this.dirKey];}
- fits(x,y){
-  if(this.buff.ghost>0)return true;
-  const l=x-TANK_HALF,t=y-TANK_HALF,r=x+TANK_HALF,b=y+TANK_HALF;
-  if(l<0||t<0||r>=FIELD_W||b>=FIELD_H)return false;
-  const c0=Math.floor(l/CELL),c1=Math.floor((r-EPS)/CELL);
-  const r0=Math.floor(t/CELL),r1=Math.floor((b-EPS)/CELL);
-  for(let cc=c0;cc<=c1;cc++)for(let cr=r0;cr<=r1;cr++)
-   if(this.game.world.solidTank(cc,cr))return false;
-  return true;
+   fits(x,y){
+    const l=x-TANK_HALF,t=y-TANK_HALF,r=x+TANK_HALF,b=y+TANK_HALF;
+    if(l<0||t<0||r>=FIELD_W||b>=FIELD_H)return false;
+    if(this.buff.ghost>0)return true;
+    const c0=Math.floor(l/CELL),c1=Math.floor((r-EPS)/CELL);
+    const r0=Math.floor(t/CELL),r1=Math.floor((b-EPS)/CELL);
+    for(let cc=c0;cc<=c1;cc++)for(let cr=r0;cr<=r1;cr++)
+     if(this.game.world.solidTank(cc,cr))return false;
+    return true;
  }
  turn(want){
   const vert=want==='up'||want==='down';
@@ -179,21 +181,25 @@ class Tank{
      moved=this.tryMove(d.x*spd*dt,d.y*spd*dt);
     }
     if(moved)this.tread+=dt*(this.buff.speed>0?SPEED_BOOSTED:TANK_SPEED);
-    const cap=(this.buff.rapid>0?RAPID_BULLETS:MAX_BULLETS)-(this.buff.scatter>0?2:0);
+    const cap=Math.max(1,(this.buff.rapid>0?RAPID_BULLETS:MAX_BULLETS)-(this.buff.scatter>0?2:0));
    if(firing&&this.cool<=0){
     let mine=0;
     for(const b of this.game.bullets)if(b.owner===this&&!b.dead)mine++;
     if(mine<cap)this.fire();
    }
  }
- draw(ctx,time){
-  if(!this.alive)return;
-  ctx.save();
-  if(this.invuln>0&&Math.floor(time*12)%2===0)ctx.globalAlpha=0.35;
-  const megaOn=this.buff.mega>0;
-  if(megaOn)ctx.scale(1.25,1.25);
-  drawTankBody(ctx,this.x,this.y,this.dirKey,this.color,this.tread,this.recoil);
-  ctx.restore();
+  draw(ctx,time){
+   if(!this.alive)return;
+   ctx.save();
+   if(this.invuln>0&&Math.floor(time*12)%2===0)ctx.globalAlpha=0.35;
+   const megaOn=this.buff.mega>0;
+   if(megaOn){
+    ctx.translate(this.x,this.y);ctx.scale(1.25,1.25);
+    drawTankBody(ctx,0,0,this.dirKey,this.color,this.tread,this.recoil);
+   }else{
+    drawTankBody(ctx,this.x,this.y,this.dirKey,this.color,this.tread,this.recoil);
+   }
+   ctx.restore();
   if(this.buff.ghost>0){
    ctx.save();ctx.globalAlpha=0.18;
    drawTankBody(ctx,this.x-12,this.y-8,this.dirKey,this.color,this.tread,this.recoil);

@@ -140,8 +140,8 @@ class Mine{
   if(!this.armed)return;
   const game=this.owner.game;
   for(const t of game.tanks){
-    if(t===this.owner||!t.alive)continue;
-    if((t.ai===null)===(this.owner.ai===null))continue;
+     if(t===this.owner||!t.alive)continue;
+     if(game.gameMode!==1&&(t.ai===null)===(this.owner.ai===null))continue;
    if(dist(this.x,this.y,t.x,t.y)<34){
     this.dead=true;
     game.parts.explosion(this.x,this.y,'#ffaa33');
@@ -229,15 +229,16 @@ function applyPower(game,tank,type){
   game.parts.text(tank.x,tank.y-30,'巨型模式！',info.color);
   return;
  }
- if(type==='emp'){
-  let count=0;
-  for(const t of game.tanks){
-   if(t!==tank&&t.alive){
-    if(t.buff.shield>0){t.buff.shield=0;count++;}
-    t.buff.speed=0;t.buffMax.speed=0;
-    t.buff.slow=3;t.buffMax.slow=3;
+  if(type==='emp'){
+   let count=0;
+   for(const t of game.tanks){
+    if(t!==tank&&t.alive){
+     if(game.gameMode===2&&t.ai===null&&tank.ai===null)continue;
+     if(t.buff.shield>0){t.buff.shield=0;count++;}
+     t.buff.speed=0;t.buffMax.speed=0;
+     t.buff.slow=3;t.buffMax.slow=3;
+    }
    }
-  }
   AudioSys.emp();
   game.parts.ring(tank.x,tank.y,'#22eeff',60,4,0.45);
   game.parts.spark(tank.x,tank.y,'#88eeff',16,180);

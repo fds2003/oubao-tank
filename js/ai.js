@@ -16,14 +16,14 @@ class AI{
   return rand(0.18,0.38);
  }
  getCommand(){return{dir:this.wantedDir,fire:this.wantsFire};}
- update(dt){
-  this.dirTimer-=dt;this.fireTimer-=dt;
-  if(this.dirTimer<=0){this.chooseDir();this.dirTimer=this.getInterval();}
-  if(this.fireTimer<=0){this.wantsFire=true;this.fireTimer=this.getFireCD();}
-  else this.wantsFire=false;
-  if(this.diff!=='easy')this.seekPowerups();
-  if(this.diff==='hard')this.dodgeBullets();
- }
+  update(dt){
+   this.dirTimer-=dt;this.fireTimer-=dt;
+   if(this.dirTimer<=0){this.chooseDir();this.dirTimer=this.getInterval();}
+   if(this.fireTimer<=0){this.wantsFire=true;this.fireTimer=this.getFireCD();}
+   else this.wantsFire=false;
+   if(this.diff==='hard')this.dodgeBullets();
+   if(this.diff!=='easy')this.seekPowerups();
+  }
   chooseDir(){
    let p=null;
    if(this.game.gameMode===2){
