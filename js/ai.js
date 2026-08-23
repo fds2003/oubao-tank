@@ -72,7 +72,8 @@ class AI{
   for(const b of this.game.bullets){
    if(b.owner===this.tank||b.dead)continue;
    if(Math.hypot(b.x-this.tank.x,b.y-this.tank.y)<80){
-    this.wantedDir=(b.dirKey==='up'||b.dirKey==='down')?(chance(0.5)?'left':'right'):(chance(0.5)?'up':'down');
+    const dx=b.dir.x,dy=b.dir.y;
+    this.wantedDir=Math.abs(dx)>Math.abs(dy)?(chance(0.5)?'up':'down'):(chance(0.5)?'left':'right');
     this.dirTimer=0.3;return;
    }
   }

@@ -51,8 +51,8 @@ class Bullet{
    this.dead=true;return;
   }
   for(const tk of game.tanks){
-   if(tk===this.owner||!tk.alive)continue;
-   if(game.gameMode===2&&tk.ai===null&&this.owner.ai===null)continue;
+    if(tk===this.owner||!tk.alive)continue;
+    if((tk.ai===null)===(this.owner.ai===null))continue;
    if(Math.abs(this.x-tk.x)<TANK_HALF+5&&Math.abs(this.y-tk.y)<TANK_HALF+5){
     tk.takeDamage(this.damage,this.owner,game);
     this.dead=true;return;

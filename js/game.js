@@ -238,15 +238,15 @@ class Game{
    ctx.fillStyle='#7a8599';ctx.fillText('存活 '+aiAlive+'/'+aiTotal,R,68);
    for(let i=0;i<WIN_ROUNDS;i++)this.drawPip(ctx,R-18-i*30,82,this.scores[1]>i,'#ff8c42');
   }
-  ctx.textAlign='center';ctx.font='bold 26px '+FONT;ctx.fillStyle='#ffd23f';
-  ctx.fillText('第 '+this.roundNum+' 局',CX,30);
-  ctx.font='16px '+FONT;ctx.fillStyle='#5a6478';
-  const ml=this.gameMode===0?'单人 · '+['简单','普通','困难'][this.aiDifficulty]+' ×'+this.aiCount:this.gameMode===2?'协作 · '+['简单','普通','困难'][this.aiDifficulty]+' ×'+this.aiCount:'双人对战';
-  ctx.fillText(MAP_DEFS[this.mapIdx].name+' · '+ml+' · 先胜'+WIN_ROUNDS,CX,54);
-  if(AudioSys.muted){ctx.fillStyle='#5a6478';ctx.fillText('🔇 静音中',CX,74);}
-  ctx.font='16px '+FONT;ctx.fillStyle='#3a4255';
-  const h=this.gameMode===0?'WASD 移动 · F/空格 开火 · P 暂停':this.gameMode===2?'P1:WASD·F   P2:方向键·L   P 暂停':'P1:WASD·F   P2:方向键·L   P 暂停';
-  ctx.fillText(h,CX,VIEW_H-20);
+   ctx.textAlign='center';ctx.font='bold 26px '+FONT;ctx.fillStyle='#ffd23f';
+   ctx.fillText('第 '+this.roundNum+' 局',CX,14);
+   ctx.font='16px '+FONT;ctx.fillStyle='#5a6478';
+   const ml=this.gameMode===0?'单人 · '+['简单','普通','困难'][this.aiDifficulty]+' ×'+this.aiCount:this.gameMode===2?'协作 · '+['简单','普通','困难'][this.aiDifficulty]+' ×'+this.aiCount:'双人对战';
+   ctx.fillText(MAP_DEFS[this.mapIdx].name+' · '+ml+' · 先胜'+WIN_ROUNDS,CX,VIEW_H-20);
+   if(AudioSys.muted){ctx.fillStyle='#5a6478';ctx.fillText('🔇 静音中',CX,VIEW_H-40);}
+   ctx.font='16px '+FONT;ctx.fillStyle='#3a4255';
+   const h=this.gameMode===0?'WASD 移动 · F/空格 开火 · P 暂停':this.gameMode===2?'P1:WASD·F   P2:方向键·L   P 暂停':'P1:WASD·F   P2:方向键·L   P 暂停';
+   ctx.fillText(h,CX,VIEW_H-4);
  }
  drawHpBar(ctx,x,y,w,tank,flip){
   ctx.fillStyle='#0e1219';rr(ctx,x,y,w,16,4);ctx.fill();
@@ -415,7 +415,7 @@ class Game{
    const on=i===this.mapIdx,col=i%perRow,row=Math.floor(i/perRow);
    const ox=gridX+col*(tw+gap),oy=gridTop+row*rowH+(on?-3:0);
    ctx.save();ctx.globalAlpha=on?1:0.45;
-   const pv=this.previews[i],sc=tw/176;
+    const pv=this.previews[i],sc=Math.min(tw/(COLS*8),th/(ROWS*8));
    for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
     const ch=pv.grid[r][c];let col2='#121620';
     if(ch==='B')col2='#8a3e1e';else if(ch==='S')col2='#5a6270';
@@ -447,16 +447,17 @@ class Game{
    ctx.font='13px '+FONT;ctx.fillStyle='#3a4255';ctx.fillText('[Q] 难度   [Z−] [X+] 数量',CX,ay+50);
   }
   const aiH=(this.gameMode===0||this.gameMode===2)?58:0,ctrlY=gridBot+aiH;
-  const pw=320,ph=64;
-  if(this.gameMode===0)this.drawControlPanel(ctx,CX-pw/2,ctrlY,pw,ph,'操作说明','#38bdf8',[['移动','W A S D'],['开火','F / 空格'],['暂停 P · 静音 M','']]);
+  const pw=320;
+  if(this.gameMode===0)this.drawControlPanel(ctx,CX-pw/2,ctrlY,pw,'操作说明','#38bdf8',[['移动','W A S D'],['开火','F / 空格'],['暂停 P · 静音 M','']]);
   else if(this.gameMode===2){
-   this.drawControlPanel(ctx,CX-pw-10,ctrlY,pw,ph,'玩家 1','#38bdf8',[['移动','WASD'],['开火','F / 空格']]);
-   this.drawControlPanel(ctx,CX+10,ctrlY,pw,ph,'玩家 2','#34d399',[['移动','方向键'],['开火','L / 回车']]);
+   this.drawControlPanel(ctx,CX-pw-10,ctrlY,pw,'玩家 1','#38bdf8',[['移动','WASD'],['开火','F / 空格']]);
+   this.drawControlPanel(ctx,CX+10,ctrlY,pw,'玩家 2','#34d399',[['移动','方向键'],['开火','L / 回车']]);
   }else{
-   this.drawControlPanel(ctx,CX-pw-10,ctrlY,pw,ph,'玩家 1','#38bdf8',[['移动','WASD'],['开火','F / 空格']]);
-   this.drawControlPanel(ctx,CX+10,ctrlY,pw,ph,'玩家 2','#ff8c42',[['移动','方向键'],['开火','L / 回车']]);
+   this.drawControlPanel(ctx,CX-pw-10,ctrlY,pw,'玩家 1','#38bdf8',[['移动','WASD'],['开火','F / 空格']]);
+   this.drawControlPanel(ctx,CX+10,ctrlY,pw,'玩家 2','#ff8c42',[['移动','方向键'],['开火','L / 回车']]);
   }
-  const infoY=ctrlY+ph+14;
+  const ctrlH=28+(this.gameMode===0?3:2)*26+10;
+  const infoY=ctrlY+ctrlH+14;
   ctx.font='15px '+FONT;ctx.fillStyle='#4a5468';
   ctx.fillText('先胜'+WIN_ROUNDS+'局 · 砖墙可碎 · 钢墙无敌 · 水面阻坦克 · 草丛藏身',CX,infoY);
   const items=Object.keys(POWER_TYPES),pGap=115,iy=infoY+32;
@@ -470,7 +471,8 @@ class Game{
   ctx.shadowColor='#ff8c42';ctx.shadowBlur=16;ctx.fillText('按 回车 开始战斗',CX,startY);ctx.shadowBlur=0;
   ctx.globalAlpha=1;ctx.font='14px '+FONT;ctx.fillStyle='#3a4255';ctx.fillText('M 静音',CX,startY+26);
  }
- drawControlPanel(ctx,x,y,w,h,title,color,rows){
+ drawControlPanel(ctx,x,y,w,title,color,rows){
+  const h=28+rows.length*26+10;
   ctx.fillStyle='rgba(12,16,24,0.92)';rr(ctx,x,y,w,h,10);ctx.fill();
   ctx.strokeStyle=color;ctx.lineWidth=1.5;rr(ctx,x,y,w,h,10);ctx.stroke();
   ctx.textAlign='left';ctx.textBaseline='alphabetic';
@@ -481,5 +483,6 @@ class Game{
    ctx.fillStyle='#c7d0de';ctx.textAlign='right';ctx.fillText(row[1],x+w-18,ry);ctx.textAlign='left';ry+=26;
   }
   ctx.textAlign='center';ctx.textBaseline='middle';
+  return h;
  }
 }

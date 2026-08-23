@@ -140,9 +140,8 @@ class Mine{
   if(!this.armed)return;
   const game=this.owner.game;
   for(const t of game.tanks){
-   if(t===this.owner||!t.alive)continue;
-   if(this.owner.ai&&t.ai&&game.gameMode===2)continue;
-   if(!this.owner.ai&&!t.ai&&game.gameMode===1)continue;
+    if(t===this.owner||!t.alive)continue;
+    if((t.ai===null)===(this.owner.ai===null))continue;
    if(dist(this.x,this.y,t.x,t.y)<34){
     this.dead=true;
     game.parts.explosion(this.x,this.y,'#ffaa33');

@@ -131,12 +131,12 @@ class Tank{
    game.parts.shieldImpact(this.x,this.y);
    return;
   }
-  const real=Math.min(dmg,this.hp);
-  this.hp-=dmg;
-  if(attacker&&attacker.alive){attacker.stats.hits++;attacker.stats.dmg+=real;}
-  const hitDir=attacker?{x:this.x-attacker.x,y:this.y-attacker.y}:null;
-  game.parts.hitImpact(this.x,this.y,this.color,dmg,hitDir);
-   game.parts.text(this.x,this.y-30,'-'+dmg,'#ff8585',18+dmg*0.06);
+   const real=Math.min(dmg,this.hp);
+   this.hp-=real;
+   if(attacker&&attacker.alive){attacker.stats.hits++;attacker.stats.dmg+=real;}
+   const hitDir=attacker?{x:this.x-attacker.x,y:this.y-attacker.y}:null;
+   game.parts.hitImpact(this.x,this.y,this.color,real,hitDir);
+    game.parts.text(this.x,this.y-30,'-'+real,'#ff8585',18+real*0.06);
   AudioSys.thud();
   if(this.hp<=0){
    this.hp=0;this.alive=false;
@@ -177,7 +177,7 @@ class Tank{
     moved=this.tryMove(d.x*spd*dt,d.y*spd*dt);
    }
    if(moved)this.tread+=dt*(this.buff.speed>0?SPEED_BOOSTED:TANK_SPEED);
-   const cap=this.buff.rapid>0?RAPID_BULLETS:MAX_BULLETS;
+    const cap=(this.buff.rapid>0?RAPID_BULLETS:MAX_BULLETS)-(this.buff.scatter>0?2:0);
    if(firing&&this.cool<=0){
     let mine=0;
     for(const b of this.game.bullets)if(b.owner===this&&!b.dead)mine++;
@@ -222,7 +222,7 @@ class Tank{
   const bw=44,bh=6,bx=this.x-bw/2,by=this.y-TANK_HALF-14;
   ctx.fillStyle='rgba(10,13,18,0.8)';
   rr(ctx,bx-1,by-1,bw+2,bh+2,2);ctx.fill();
-  const frac=this.hp/HP_MAX;
+  const frac=Math.min(1,this.hp/HP_MAX);
   ctx.fillStyle=frac>0.5?this.color:(frac>0.25?'#ffd23f':'#ff5555');
   if(frac>0)ctx.fillRect(bx,by,bw*frac,bh);
  }
