@@ -49,13 +49,22 @@ class Game{
    this.tanks=[new Tank(0,{c:s1.c,r:s1.r,face:'right',color:'#38bdf8',name:'玩家',keys:P1_KEYS},this)];
    const aiC=['#ff8c42','#c084fc','#34d399','#f472b6','#facc15','#fb923c','#a78bfa','#22d3ee','#e879f9','#84cc16'];
    const aiN=['AI·烈焰','AI·幻紫','AI·翡翠','AI·蔷薇','AI·金芒','AI·炽阳','AI·星辉','AI·寒冰','AI·魅影','AI·翠芽'];
-    for(let i=0;i<this.aiCount;i++){
-     const si=i%2===0?s2:s1;
-     const aiOff=[{c:1,r:1},{c:-1,r:-1},{c:1,r:-1},{c:-1,r:1},{c:2,r:0},{c:-2,r:0},{c:0,r:2},{c:0,r:-2},{c:2,r:1},{c:-2,r:-1}];
-     const off=aiOff[i%aiOff.length];
-     const t=new Tank(i+1,{c:si.c+off.c,r:si.r+off.r,face:'left',color:aiC[i],name:aiN[i],keys:{up:0,down:0,left:0,right:0,fire:[]}},this);
-     t.ai=new AI(t,this,diffList[this.aiDifficulty]);this.tanks.push(t);
-    }
+     for(let i=0;i<this.aiCount;i++){
+      const si=i%2===0?{c:s2.c,r:s2.r}:{c:s1.c,r:s1.r};
+      const safeOff=[{c:0,r:-1},{c:0,r:1},{c:-1,r:0},{c:1,r:0},{c:0,r:-2},{c:0,r:2},{c:-1,r:-1},{c:1,r:1},{c:2,r:0},{c:-2,r:0}];
+      let placed=false;
+      for(const off of safeOff){
+       const tc=si.c+off.c,tr=si.r+off.r;
+       if(tc>=1&&tc<COLS-1&&tr>=1&&tr<ROWS-1&&!this.world.solidTank(tc,tr)){
+        const t=new Tank(i+1,{c:tc,r:tr,face:'left',color:aiC[i],name:aiN[i],keys:{up:0,down:0,left:0,right:0,fire:[]}},this);
+        t.ai=new AI(t,this,diffList[this.aiDifficulty]);this.tanks.push(t);placed=true;break;
+       }
+      }
+      if(!placed){
+       const t=new Tank(i+1,{c:s2.c,r:s2.r,face:'left',color:aiC[i],name:aiN[i],keys:{up:0,down:0,left:0,right:0,fire:[]}},this);
+       t.ai=new AI(t,this,diffList[this.aiDifficulty]);this.tanks.push(t);
+      }
+     }
   }else if(this.gameMode===2){
    while(this.matchStats.length<2+this.aiCount)this.matchStats.push({shots:0,hits:0,dmg:0});
    this.tanks=[
@@ -65,11 +74,20 @@ class Game{
    const aiC=['#ff8c42','#c084fc','#f472b6','#facc15','#fb923c','#a78bfa','#22d3ee','#e879f9','#84cc16','#38bdf8'];
    const aiN=['AI·烈焰','AI·幻紫','AI·蔷薇','AI·金芒','AI·炽阳','AI·星辉','AI·寒冰','AI·魅影','AI·翠芽','AI·苍穹'];
     for(let i=0;i<this.aiCount;i++){
-     const si=i%2===0?s2:s1;
-     const aiOff=[{c:1,r:1},{c:-1,r:-1},{c:1,r:-1},{c:-1,r:1},{c:2,r:0},{c:-2,r:0},{c:0,r:2},{c:0,r:-2},{c:2,r:1},{c:-2,r:-1}];
-     const off=aiOff[i%aiOff.length];
-     const t=new Tank(i+2,{c:si.c+off.c,r:si.r+off.r,face:'left',color:aiC[i],name:aiN[i],keys:{up:0,down:0,left:0,right:0,fire:[]}},this);
-     t.ai=new AI(t,this,diffList[this.aiDifficulty]);this.tanks.push(t);
+     const si=i%2===0?{c:s2.c,r:s2.r}:{c:s1.c,r:s1.r};
+     const safeOff=[{c:0,r:-1},{c:0,r:1},{c:-1,r:0},{c:1,r:0},{c:0,r:-2},{c:0,r:2},{c:-1,r:-1},{c:1,r:1},{c:2,r:0},{c:-2,r:0}];
+     let placed=false;
+     for(const off of safeOff){
+      const tc=si.c+off.c,tr=si.r+off.r;
+      if(tc>=1&&tc<COLS-1&&tr>=1&&tr<ROWS-1&&!this.world.solidTank(tc,tr)){
+       const t=new Tank(i+2,{c:tc,r:tr,face:'left',color:aiC[i],name:aiN[i],keys:{up:0,down:0,left:0,right:0,fire:[]}},this);
+       t.ai=new AI(t,this,diffList[this.aiDifficulty]);this.tanks.push(t);placed=true;break;
+      }
+     }
+     if(!placed){
+      const t=new Tank(i+2,{c:s2.c,r:s2.r,face:'left',color:aiC[i],name:aiN[i],keys:{up:0,down:0,left:0,right:0,fire:[]}},this);
+      t.ai=new AI(t,this,diffList[this.aiDifficulty]);this.tanks.push(t);
+     }
     }
   }else{
    this.matchStats.length=2;
