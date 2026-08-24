@@ -47,8 +47,7 @@ class AI{
    if(this.isBlocked(this.wantedDir))this.wantedDir=this.openDir();
   }
  hasLOS(target){
-  const dx=target.x-this.tank.x,dy=target.y-this.tank.y;
-  const steps=Math.ceil(Math.hypot(dx,dy)/(CELL*0.4));
+  const dx=target.x-this.tank.x,dy=target.y-this.tank.y;   const steps=Math.ceil(Math.hypot(dx,dy)/(CELL*CONFIG.AI_LOS_STEP));
   for(let i=1;i<steps;i++){
    const f=i/steps;
    const cx=Math.floor((this.tank.x+dx*f)/CELL);
@@ -75,7 +74,7 @@ class AI{
  dodgeBullets(){
   for(const b of this.game.bullets){
    if(b.owner===this.tank||b.dead)continue;
-   if(Math.hypot(b.x-this.tank.x,b.y-this.tank.y)<80){
+   if(Math.hypot(b.x-this.tank.x,b.y-this.tank.y)<CONFIG.AI_DODGE_RANGE){
     const dx=b.dir.x,dy=b.dir.y;
     this.wantedDir=Math.abs(dx)>Math.abs(dy)?(chance(0.5)?'up':'down'):(chance(0.5)?'left':'right');
     this.dirTimer=0.3;return;
@@ -84,7 +83,7 @@ class AI{
  }
  seekPowerups(){
   for(const p of this.game.powerups){
-   if(Math.hypot(p.x-this.tank.x,p.y-this.tank.y)<200){
+   if(Math.hypot(p.x-this.tank.x,p.y-this.tank.y)<CONFIG.AI_SEEK_RANGE){
     this.wantedDir=this.dirTo(p);this.dirTimer=0.5;return;
    }
   }

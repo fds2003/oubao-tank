@@ -1,7 +1,13 @@
 'use strict';
 const P1_KEYS={up:'KeyW',down:'KeyS',left:'KeyA',right:'KeyD',fire:['Space','KeyF']};
 const P2_KEYS={up:'ArrowUp',down:'ArrowDown',left:'ArrowLeft',right:'ArrowRight',fire:['Enter','KeyL']};
-const WIN_ROUNDS=5;
+const WIN_ROUNDS=CONFIG.WIN_ROUNDS;
+const AI_COLORS=['#ff8c42','#c084fc','#34d399','#f472b6','#facc15','#fb923c','#a78bfa','#22d3ee','#e879f9','#84cc16'];
+const AI_COLORS_COOP=['#ff8c42','#c084fc','#f472b6','#facc15','#fb923c','#a78bfa','#22d3ee','#e879f9','#84cc16','#38bdf8'];
+const AI_NAMES=['AI·烈焰','AI·幻紫','AI·翡翠','AI·蔷薇','AI·金芒','AI·炽阳','AI·星辉','AI·寒冰','AI·魅影','AI·翠芽'];
+const AI_NAMES_COOP=['AI·烈焰','AI·幻紫','AI·蔷薇','AI·金芒','AI·炽阳','AI·星辉','AI·寒冰','AI·魅影','AI·翠芽','AI·苍穹'];
+const SAFE_OFFSETS=[{c:0,r:-1},{c:0,r:1},{c:-1,r:0},{c:1,r:0},{c:0,r:-2},{c:0,r:2},{c:-1,r:-1},{c:1,r:1},{c:2,r:0},{c:-2,r:0}];
+const DIFF_LIST=['easy','normal','hard'];
 
 class Game{
  constructor(ctx,dpr){
@@ -40,55 +46,31 @@ class Game{
    this.fade=0;this.fadeTarget=1;
   this.startRound();
  }
+ spawnAI(id,spawnPt,color,name){
+  for(const off of SAFE_OFFSETS){
+   const tc=spawnPt.c+off.c,tr=spawnPt.r+off.r;
+   if(tc>=1&&tc<COLS-1&&tr>=1&&tr<ROWS-1&&!this.world.solidTank(tc,tr)){
+    const t=new Tank(id,{c:tc,r:tr,face:'left',color,name,keys:{up:0,down:0,left:0,right:0,fire:[]}},this);
+    t.ai=new AI(t,this,DIFF_LIST[this.aiDifficulty]);this.tanks.push(t);return;
+   }
+  }
+  const t=new Tank(id,{c:spawnPt.c,r:spawnPt.r,face:'left',color,name,keys:{up:0,down:0,left:0,right:0,fire:[]}},this);
+  t.ai=new AI(t,this,DIFF_LIST[this.aiDifficulty]);this.tanks.push(t);
+ }
  startRound(){
   this.world=new World(MAP_DEFS[this.mapIdx]);
   const s1=this.world.spawns[0],s2=this.world.spawns[1];
-  const diffList=['easy','normal','hard'];
   if(this.gameMode===0){
    while(this.matchStats.length<1+this.aiCount)this.matchStats.push({shots:0,hits:0,dmg:0});
    this.tanks=[new Tank(0,{c:s1.c,r:s1.r,face:'right',color:'#38bdf8',name:'玩家',keys:P1_KEYS},this)];
-   const aiC=['#ff8c42','#c084fc','#34d399','#f472b6','#facc15','#fb923c','#a78bfa','#22d3ee','#e879f9','#84cc16'];
-   const aiN=['AI·烈焰','AI·幻紫','AI·翡翠','AI·蔷薇','AI·金芒','AI·炽阳','AI·星辉','AI·寒冰','AI·魅影','AI·翠芽'];
-      for(let i=0;i<this.aiCount;i++){
-       const si={c:s2.c,r:s2.r};
-       const safeOff=[{c:0,r:-1},{c:0,r:1},{c:-1,r:0},{c:1,r:0},{c:0,r:-2},{c:0,r:2},{c:-1,r:-1},{c:1,r:1},{c:2,r:0},{c:-2,r:0}];
-       let placed=false;
-       for(const off of safeOff){
-        const tc=si.c+off.c,tr=si.r+off.r;
-        if(tc>=1&&tc<COLS-1&&tr>=1&&tr<ROWS-1&&!this.world.solidTank(tc,tr)){
-         const t=new Tank(i+1,{c:tc,r:tr,face:'left',color:aiC[i],name:aiN[i],keys:{up:0,down:0,left:0,right:0,fire:[]}},this);
-         t.ai=new AI(t,this,diffList[this.aiDifficulty]);this.tanks.push(t);placed=true;break;
-        }
-       }
-       if(!placed){
-        const t=new Tank(i+1,{c:s2.c,r:s2.r,face:'left',color:aiC[i],name:aiN[i],keys:{up:0,down:0,left:0,right:0,fire:[]}},this);
-        t.ai=new AI(t,this,diffList[this.aiDifficulty]);this.tanks.push(t);
-       }
-      }
+   for(let i=0;i<this.aiCount;i++)this.spawnAI(i+1,s2,AI_COLORS[i],AI_NAMES[i]);
   }else if(this.gameMode===2){
    while(this.matchStats.length<2+this.aiCount)this.matchStats.push({shots:0,hits:0,dmg:0});
    this.tanks=[
     new Tank(0,{c:s1.c,r:s1.r,face:'right',color:'#38bdf8',name:'玩家 1',keys:P1_KEYS},this),
     new Tank(1,{c:s2.c,r:s2.r,face:'right',color:'#34d399',name:'玩家 2',keys:P2_KEYS},this)
    ];
-   const aiC=['#ff8c42','#c084fc','#f472b6','#facc15','#fb923c','#a78bfa','#22d3ee','#e879f9','#84cc16','#38bdf8'];
-   const aiN=['AI·烈焰','AI·幻紫','AI·蔷薇','AI·金芒','AI·炽阳','AI·星辉','AI·寒冰','AI·魅影','AI·翠芽','AI·苍穹'];
-     for(let i=0;i<this.aiCount;i++){
-      const si={c:s1.c,r:s1.r};
-      const safeOff=[{c:0,r:-1},{c:0,r:1},{c:-1,r:0},{c:1,r:0},{c:0,r:-2},{c:0,r:2},{c:-1,r:-1},{c:1,r:1},{c:2,r:0},{c:-2,r:0}];
-      let placed=false;
-      for(const off of safeOff){
-       const tc=si.c+off.c,tr=si.r+off.r;
-       if(tc>=1&&tc<COLS-1&&tr>=1&&tr<ROWS-1&&!this.world.solidTank(tc,tr)){
-        const t=new Tank(i+2,{c:tc,r:tr,face:'left',color:aiC[i],name:aiN[i],keys:{up:0,down:0,left:0,right:0,fire:[]}},this);
-        t.ai=new AI(t,this,diffList[this.aiDifficulty]);this.tanks.push(t);placed=true;break;
-       }
-      }
-      if(!placed){
-       const t=new Tank(i+2,{c:s1.c,r:s1.r,face:'left',color:aiC[i],name:aiN[i],keys:{up:0,down:0,left:0,right:0,fire:[]}},this);
-       t.ai=new AI(t,this,diffList[this.aiDifficulty]);this.tanks.push(t);
-      }
-     }
+   for(let i=0;i<this.aiCount;i++)this.spawnAI(i+2,s1,AI_COLORS_COOP[i],AI_NAMES_COOP[i]);
   }else{
    this.matchStats.length=2;
    this.tanks=[
@@ -97,7 +79,7 @@ class Game{
    ];
   }
   this.bullets=[];this.powerups=[];this.mines=[];this.parts.clear();
-  this.puTimer=rand(4,6);
+  this.puTimer=rand(CONFIG.POWERUP_INITIAL_MIN,CONFIG.POWERUP_INITIAL_MAX);
   this.state='countdown';this.cd=3;this.cdLast=4;
  }
  trySpawnPowerup(){
@@ -106,8 +88,8 @@ class Game{
    if(this.world.at(c,r)!=='.')continue;
    const px=c*CELL+CELL/2,py=r*CELL+CELL/2;
    let ok=true;
-   for(const t of this.tanks)if(t.alive&&dist(px,py,t.x,t.y)<180){ok=false;break;}
-   if(ok)for(const p of this.powerups)if(dist(px,py,p.x,p.y)<55){ok=false;break;}
+   for(const t of this.tanks)if(t.alive&&dist(px,py,t.x,t.y)<CONFIG.POWERUP_SPAWN_MIN_DIST){ok=false;break;}
+   if(ok)for(const p of this.powerups)if(dist(px,py,p.x,p.y)<CONFIG.POWERUP_MIN_SPACING){ok=false;break;}
    if(!ok)continue;
    this.powerups.push(new PowerUp(px,py,POWER_POOL[randInt(0,POWER_POOL.length-1)]));return;
   }
@@ -122,9 +104,9 @@ class Game{
   for(const m of this.mines)m.update(dt);
   this.mines=this.mines.filter(m=>!m.dead);
   this.puTimer-=dt;
-  if(this.puTimer<=0){if(this.powerups.length<3)this.trySpawnPowerup();this.puTimer=rand(5,8);}
+  if(this.puTimer<=0){if(this.powerups.length<3)this.trySpawnPowerup();  this.puTimer=rand(CONFIG.POWERUP_INTERVAL_MIN,CONFIG.POWERUP_INTERVAL_MAX);}
   for(const p of this.powerups)for(const t of this.tanks)
-   if(!p.picked&&t.alive&&dist(p.x,p.y,t.x,t.y)<34){p.picked=true;applyPower(this,t,p.type);}
+   if(!p.picked&&t.alive&&dist(p.x,p.y,t.x,t.y)<CONFIG.POWERUP_PICKUP_RANGE){p.picked=true;applyPower(this,t,p.type);}
   this.powerups=this.powerups.filter(p=>!p.picked);
   if(this.gameMode===0){
    const pDead=!this.tanks[0].alive,aiDead=this.tanks.slice(1).every(t=>!t.alive);

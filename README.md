@@ -2,6 +2,9 @@
 
 本地多人坦克对战游戏，纯HTML5/Canvas/JS实现，无任何依赖。
 
+> 📋 详细需求文档请参见 [REQUIREMENTS.md](REQUIREMENTS.md)
+> 📝 开发计划请参见 [DEVPLAN.md](DEVPLAN.md)
+
 ## 快速开始
 
 直接用浏览器打开 `index.html` 即可游玩。
@@ -65,7 +68,7 @@
 index.html          入口
 css/style.css       全屏自适应样式
 js/
-├── utils.js        常量和工具函数
+├── utils.js        常量、工具函数、CONFIG配置（20个可调参数）
 ├── audio.js        音效系统（Web Audio API）
 ├── input.js        键盘输入管理
 ├── maps.js         12张地图定义（水平镜像对称）
@@ -75,8 +78,27 @@ js/
 ├── bullet.js       子弹逻辑（角度支持散射）
 ├── ai.js           AI控制器（LOS/路径/躲避/道具搜寻）
 ├── tank.js         坦克逻辑（移动/开火/受伤/绘制）
-├── game.js         游戏主循环和所有绘制
+├── game.js         游戏主循环、spawnAI、所有UI绘制
 └── main.js         启动入口
+```
+
+### CONFIG 配置对象
+
+游戏参数集中在 `utils.js` 的 `CONFIG` 对象中管理，调整平衡性只需修改一处：
+
+```js
+const CONFIG = {
+  BULLET_HIT_RANGE: 26,        // 子弹碰撞判定范围
+  POWERUP_PICKUP_RANGE: 34,    // 道具拾取范围
+  POWERUP_DURATION: 8,         // 增益道具持续时间
+  HEAL_AMOUNT: 40,             // 维修回血量
+  MEGA_HP_BONUS: 50,           // 巨型额外血量
+  MINE_DAMAGE: 50,             // 地雷伤害
+  AI_DODGE_RANGE: 80,          // AI躲避子弹范围
+  AI_SEEK_RANGE: 200,          // AI搜寻道具范围
+  WIN_ROUNDS: 5,               // 胜利局数
+  // ... 共20个参数
+};
 ```
 
 ## 画布参数
@@ -89,6 +111,7 @@ js/
 ## 版本历史
 
 ```
+ refactor: 代码重构 - CONFIG配置对象+spawnAI提取+魔数替换
 49062bc fix: 修复2张地图不可达问题
 6ba75f5 fix: 代码审查修复7个BUG
 b77b846 fix: AI不动BUG - 出生点偏移越界+AI方向逻辑

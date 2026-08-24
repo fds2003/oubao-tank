@@ -130,25 +130,25 @@ class PowerUp{
 class Mine{
  constructor(x,y,owner){
   this.x=x;this.y=y;this.owner=owner;
-  this.t=0;this.life=18;this.armed=false;this.dead=false;
+  this.t=0;this.life=CONFIG.MINE_LIFE;this.armed=false;this.dead=false;
   this.blinkT=0;
  }
  update(dt){
   this.t+=dt;this.life-=dt;this.blinkT+=dt;
-  if(this.t>0.8)this.armed=true;
+  if(this.t>CONFIG.MINE_ARM_TIME)this.armed=true;
   if(this.life<=0){this.dead=true;return;}
   if(!this.armed)return;
   const game=this.owner.game;
   for(const t of game.tanks){
      if(t===this.owner||!t.alive)continue;
      if(game.gameMode!==1&&(t.ai===null)===(this.owner.ai===null))continue;
-   if(dist(this.x,this.y,t.x,t.y)<34){
+   if(dist(this.x,this.y,t.x,t.y)<CONFIG.POWERUP_PICKUP_RANGE){
     this.dead=true;
     game.parts.explosion(this.x,this.y,'#ffaa33');
     game.parts.ring(this.x,this.y,'#ff8800',50,4,0.4);
     game.addShake(6);
     AudioSys.boom();
-    t.takeDamage(50,this.owner,game);
+    t.takeDamage(CONFIG.MINE_DAMAGE,this.owner,game);
     return;
    }
   }
@@ -206,11 +206,10 @@ function applyPower(game,tank,type){
   }
   return;
  }
- if(type==='heal'){
-  tank.hp=Math.min(HP_MAX,tank.hp+40);
+ if(type==='heal'){   tank.hp=Math.min(HP_MAX,tank.hp+CONFIG.HEAL_AMOUNT);
   AudioSys.pickup();
   game.parts.spark(tank.x,tank.y,info.color,10,140);
-  game.parts.text(tank.x,tank.y-30,'+40 HP',info.color);
+  game.parts.text(tank.x,tank.y-30,'+'+CONFIG.HEAL_AMOUNT+' HP',info.color);
   return;
  }
  if(type==='mine'){
@@ -220,9 +219,8 @@ function applyPower(game,tank,type){
   game.parts.text(tank.x,tank.y-30,'地雷已部署！',info.color);
   return;
  }
- if(type==='mega'){
-  tank.hp=Math.min(HP_MAX+50,tank.hp+50);
-  tank.buff.mega=10;tank.buffMax.mega=10;
+ if(type==='mega'){   tank.hp=Math.min(HP_MAX+CONFIG.MEGA_HP_BONUS,tank.hp+CONFIG.MEGA_HP_BONUS);
+  tank.buff.mega=CONFIG.MEGA_DURATION;tank.buffMax.mega=CONFIG.MEGA_DURATION;
   AudioSys.pickup();
   game.parts.ring(tank.x,tank.y,info.color,36,3,0.35);
   game.parts.star(tank.x,tank.y,info.color,6,8,180,0.25);
@@ -236,7 +234,7 @@ function applyPower(game,tank,type){
      if(game.gameMode===2&&t.ai===null&&tank.ai===null)continue;
      if(t.buff.shield>0){t.buff.shield=0;count++;}
      t.buff.speed=0;t.buffMax.speed=0;
-     t.buff.slow=3;t.buffMax.slow=3;
+     t.buff.slow=CONFIG.EMP_SLOW_DURATION;t.buffMax.slow=CONFIG.EMP_SLOW_DURATION;
     }
    }
   AudioSys.emp();
@@ -246,7 +244,7 @@ function applyPower(game,tank,type){
   return;
  }
  if(type==='shield'||type==='speed'||type==='rapid'||type==='power'||type==='ghost'||type==='scatter'){
-  tank.buff[type]=8;tank.buffMax[type]=8;
+  tank.buff[type]=CONFIG.POWERUP_DURATION;tank.buffMax[type]=CONFIG.POWERUP_DURATION;
   AudioSys.pickup();
   game.parts.spark(tank.x,tank.y,info.color,10,140);
   game.parts.text(tank.x,tank.y-30,info.name+'！',info.color);

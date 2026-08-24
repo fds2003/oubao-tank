@@ -52,8 +52,7 @@ class Bullet{
   }
   for(const tk of game.tanks){
     if(tk===this.owner||!tk.alive)continue;
-    if((tk.ai===null)===(this.owner.ai===null))continue;
-   if(Math.abs(this.x-tk.x)<TANK_HALF+5&&Math.abs(this.y-tk.y)<TANK_HALF+5){
+    if((tk.ai===null)===(this.owner.ai===null))continue;    if(Math.abs(this.x-tk.x)<CONFIG.BULLET_HIT_RANGE&&Math.abs(this.y-tk.y)<CONFIG.BULLET_HIT_RANGE){
     tk.takeDamage(this.damage,this.owner,game);
     this.dead=true;return;
    }

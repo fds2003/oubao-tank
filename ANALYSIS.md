@@ -1,6 +1,8 @@
 # 坦克大战 - 代码分析与修复记录
 
 > 所有BUG已修复并验证。
+>
+> 📋 需求文档：[REQUIREMENTS.md](REQUIREMENTS.md) | 📖 项目说明：[README.md](README.md)
 
 ---
 
@@ -63,25 +65,57 @@
 | 八卦迷阵 | 中心22格被砖墙围死 | 移除围死的B墙 |
 | 三角攻防 | 187格被钢墙封死 | 移除封死出生点的S墙 |
 
+### 第六轮：代码重构（消除重复+统一配置）
+
+| # | 改动 | 文件 | 说明 |
+|---|------|------|------|
+| 1 | 新增 `CONFIG` 配置对象 | `utils.js` | 集中管理20个游戏参数，消除散落各处的魔数 |
+| 2 | 提取 `spawnAI()` 方法 | `game.js` | 将重复~40行的AI生成逻辑提取为8行公共方法 |
+| 3 | 提取模块级常量 | `game.js` | `AI_COLORS`、`AI_NAMES`、`SAFE_OFFSETS`、`DIFF_LIST` 提取为顶层常量 |
+| 4 | 全局魔数替换 | 多个文件 | `ai.js`×3、`bullet.js`×1、`powerup.js`×8、`game.js`×5 |
+
+**CONFIG 配置项清单：**
+
+| 常量 | 值 | 用途 |
+|------|----|------|
+| `BULLET_HIT_RANGE` | 26 | 子弹碰撞判定范围 |
+| `POWERUP_PICKUP_RANGE` | 34 | 道具/地雷拾取范围 |
+| `POWERUP_SPAWN_MIN_DIST` | 180 | 道具刷新距玩家最小距离 |
+| `POWERUP_MIN_SPACING` | 55 | 道具之间最小间距 |
+| `POWERUP_DURATION` | 8 | 增益类道具持续时间 |
+| `POWERUP_INITIAL_MIN/MAX` | 4/6 | 首个道具刷新延迟（秒） |
+| `POWERUP_INTERVAL_MIN/MAX` | 5/8 | 后续道具刷新间隔（秒） |
+| `HEAL_AMOUNT` | 40 | 维修回血量 |
+| `MEGA_HP_BONUS` | 50 | 巨型额外血量 |
+| `MEGA_DURATION` | 10 | 巨型持续时间（秒） |
+| `EMP_SLOW_DURATION` | 3 | EMP 减速时间（秒） |
+| `MINE_LIFE` | 18 | 地雷存活时间（秒） |
+| `MINE_ARM_TIME` | 0.8 | 地雷启动延迟（秒） |
+| `MINE_DAMAGE` | 50 | 地雷伤害 |
+| `AI_DODGE_RANGE` | 80 | AI 躲避子弹范围 |
+| `AI_SEEK_RANGE` | 200 | AI 搜寻道具范围 |
+| `AI_LOS_STEP` | 0.4 | AI 视线检测步长 |
+| `WIN_ROUNDS` | 5 | 胜利局数 |
+
 ---
 
 ## 当前代码统计
 
 | 文件 | 行数 | 职责 |
 |------|------|------|
-| utils.js | 40 | 常量、工具函数 |
+| utils.js | 55 | 常量、工具函数、CONFIG配置 |
 | audio.js | 66 | 音效（Web Audio API） |
 | input.js | 18 | 键盘输入管理 |
 | maps.js | 189 | 12张地图定义+buildMap |
 | world.js | 91 | 地形渲染+草地预计算 |
 | particles.js | 150 | 粒子特效（swap-and-pop） |
-| powerup.js | 259 | 道具系统（11种+地雷+applyPower） |
-| bullet.js | 92 | 子弹逻辑（角度支持） |
-| ai.js | 92 | AI控制器（LOS/路径/躲避/道具） |
-| tank.js | 236 | 坦克逻辑（移动/开火/受伤/绘制） |
-| game.js | 512 | 游戏主循环+所有UI绘制 |
+| powerup.js | 257 | 道具系统（11种+地雷+applyPower） |
+| bullet.js | 91 | 子弹逻辑（角度支持） |
+| ai.js | 91 | AI控制器（LOS/路径/躲避/道具） |
+| tank.js | 237 | 坦克逻辑（移动/开火/受伤/绘制） |
+| game.js | 495 | 游戏主循环+spawnAI+所有UI绘制 |
 | main.js | 14 | 启动入口 |
-| **合计** | **~1760** | |
+| **合计** | **~1754** | |
 
 ---
 
@@ -95,3 +129,15 @@
 | test-draw2 | 7 | ✓ 全部通过 |
 | test-newpowerups | 10 | ✓ 全部通过 |
 | **合计** | **53** | **✓** |
+
+### 重构验证（2026-08-24）
+
+| 验证项 | 状态 |
+|--------|------|
+| 12个JS文件语法检查 | ✓ 通过 |
+| CONFIG 20个键完整性 | ✓ 通过 |
+| 4个消费文件引用有效性 | ✓ 通过 |
+| spawnAI 单人模式（1+2AI） | ✓ 通过 |
+| spawnAI 协作模式（2+3AI） | ✓ 通过 |
+| 双人模式（无AI） | ✓ 通过 |
+| 道具效果（维修+40/巨型+50/护盾8s） | ✓ 通过 |
