@@ -37,6 +37,9 @@ class Game{
  this.achievementNotify=[]; // [{text,icon,timer}]
  this.currentPlayerId=null;
  this.showLeaderboard=false;
+ this.comboSystem=new ComboSystem();
+ this.comboNotify=[]; // [{text,color,timer}]
+ this.bgm=new BGM();
  }
  start(){requestAnimationFrame(ts=>this.loop(ts));}
  loop(ts){
@@ -77,6 +80,30 @@ class Game{
   this.leaderboard.recordResult(this.currentPlayerId,{
    won,kills:killed,accuracy:stats.shots>0?stats.hits/stats.shots:0
   });
+ }
+ _checkCombo(type){
+  const tank=this.tanks[0];
+  if(!tank||!tank.alive)return;
+  // 同步buff到combo系统
+  for(const k in tank.buff){
+   if(tank.buff[k]>0)this.comboSystem.addBuff(k,tank.buff[k]);
+  }
+  // 检查新组合
+  const prevNames=this.comboSystem.getActiveComboNames().slice();
+  this.comboSystem.update(0);
+  const newNames=this.comboSystem.getActiveComboNames();
+  for(const name of newNames){
+   if(prevNames.indexOf(name)===-1){
+    // 新组合激活
+    const combo=this.comboSystem.combos.find(c=>c.name===name);
+    if(combo){
+     this.comboNotify.push({text:'组合触发！'+name,desc:combo.desc,color:combo.color,timer:3});
+     this.parts.text(tank.x,tank.y-50,name+'!',combo.color);
+     this.parts.ring(tank.x,tank.y,combo.color,40,4,0.5);
+     AudioSys.pickup();
+    }
+   }
+  }
  }
   startMatch(i){
    this.mapIdx=i;this.scores=[0,0];this.roundNum=1;
@@ -148,7 +175,7 @@ class Game{
   this.puTimer-=dt;
   if(this.puTimer<=0){if(this.powerups.length<3)this.trySpawnPowerup();  this.puTimer=rand(CONFIG.POWERUP_INTERVAL_MIN,CONFIG.POWERUP_INTERVAL_MAX);}
   for(const p of this.powerups)for(const t of this.tanks)
-   if(!p.picked&&t.alive&&dist(p.x,p.y,t.x,t.y)<CONFIG.POWERUP_PICKUP_RANGE){p.picked=true;applyPower(this,t,p.type);}
+   if(!p.picked&&t.alive&&dist(p.x,p.y,t.x,t.y)<CONFIG.POWERUP_PICKUP_RANGE){p.picked=true;applyPower(this,t,p.type);if(t.isPlayer)this._checkCombo(p.type);}
   this.powerups=this.powerups.filter(p=>!p.picked);
   if(this.gameMode===0){
    const pDead=!this.tanks[0].alive,aiDead=this.tanks.slice(1).every(t=>!t.alive);
@@ -183,6 +210,11 @@ class Game{
    this.achievementNotify[i].timer-=dt;
    if(this.achievementNotify[i].timer<=0)this.achievementNotify.splice(i,1);
   }
+  // 组合通知计时
+  for(let i=this.comboNotify.length-1;i>=0;i--){
+   this.comboNotify[i].timer-=dt;
+   if(this.comboNotify[i].timer<=0)this.comboNotify.splice(i,1);
+  }
   this.fade=lerp(this.fade,this.fadeTarget,dt*6);
   if(Input.pressed('KeyM'))AudioSys.toggleMute();
   if(this.tutorial.state==='active'){
@@ -207,14 +239,14 @@ class Game{
      if(Input.pressed('KeyX'))this.aiCount=Math.min(10,this.aiCount+1);
     }
     if(Input.pressed('KeyL'))this.showLeaderboard=!this.showLeaderboard;
-    if(Input.pressed('Enter','Space')&&!this.showLeaderboard)this.startMatch(this.mapIdx);
+    if(Input.pressed('Enter','Space')&&!this.showLeaderboard){this.startMatch(this.mapIdx);this.bgm.play('battle');}
     break;
    case'countdown':{
     this.cd-=dt;const n=Math.ceil(this.cd);
     if(n!==this.cdLast){this.cdLast=n;if(n>0)AudioSys.beep();}
     if(this.cd<=0){this.state='play';this.fightT=0.9;AudioSys.go();}
     break;}
-   case'play':this.updatePlay(dt);if(Input.pressed('KeyP','Escape'))this.state='pause';break;
+   case'play':this.updatePlay(dt);if(Input.pressed('KeyP','Escape')){this.state='pause';this.bgm.pause();}break;
    case'round':
     this.bannerT-=dt;
     for(const b of this.bullets)b.update(dt,this);this.bullets=this.bullets.filter(b=>!b.dead);
@@ -225,11 +257,11 @@ class Game{
    case'match':
     this.confT-=dt;
     if(this.confT<=0){this.confT=0.09;this.parts.confetti(rand(60,VIEW_W-60));if(chance(0.5))this.parts.confetti(rand(60,VIEW_W-60));}
-    if(Input.pressed('KeyR'))this.startMatch(this.mapIdx);
-    if(Input.pressed('Escape'))this.state='menu';break;
+    if(Input.pressed('KeyR')){this.startMatch(this.mapIdx);this.bgm.play('battle');}
+    if(Input.pressed('Escape')){this.state='menu';this.bgm.play('menu');}break;
    case'pause':
-    if(Input.pressed('KeyP','Enter'))this.state='play';
-    else if(Input.pressed('Escape'))this.state='menu';break;
+    if(Input.pressed('KeyP','Enter')){this.state='play';this.bgm.resume();}
+    else if(Input.pressed('Escape')){this.state='menu';this.bgm.stop();this.bgm.play('menu');}break;
   }
  }
  draw(){
@@ -256,6 +288,20 @@ class Game{
    ctx.strokeStyle='#ffd23f';ctx.lineWidth=1.5;rr(ctx,CX-160,ny-16,320,40,8);ctx.stroke();
    ctx.font='bold 16px '+FONT;ctx.fillStyle='#ffd23f';ctx.textAlign='center';
    ctx.fillText(n.icon+' '+n.text,CX,ny+8);
+   ctx.restore();
+  }
+  // 组合通知
+  for(let i=this.comboNotify.length-1;i>=0;i--){
+   const n=this.comboNotify[i];
+   const alpha=Math.min(1,n.timer);
+   const ny=60+i*50;
+   ctx.save();ctx.globalAlpha=alpha;
+   ctx.fillStyle='rgba(12,16,24,0.92)';rr(ctx,CX-180,ny-16,360,40,8);ctx.fill();
+   ctx.strokeStyle=n.color;ctx.lineWidth=2;rr(ctx,CX-180,ny-16,360,40,8);ctx.stroke();
+   ctx.font='bold 16px '+FONT;ctx.fillStyle=n.color;ctx.textAlign='center';
+   ctx.fillText('⚡ '+n.text,CX,ny+6);
+   ctx.font='12px '+FONT;ctx.fillStyle='#7a8599';
+   ctx.fillText(n.desc,CX,ny+22);
    ctx.restore();
   }
  }
