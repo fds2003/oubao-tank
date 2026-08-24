@@ -4,6 +4,7 @@ class AI{
   this.tank=tank;this.game=game;this.diff=diff;
   this.dirTimer=0;this.fireTimer=0;
   this.wantedDir=null;this.wantsFire=false;
+  this._stuckTimer=0;this._lastX=tank.x;this._lastY=tank.y;
  }
  getInterval(){
   if(this.diff==='easy')return rand(1.0,1.8);
@@ -22,6 +23,11 @@ class AI{
  getCommand(){return{dir:this.wantedDir,fire:this.wantsFire};}
   update(dt){
    this.dirTimer-=dt;this.fireTimer-=dt;
+   // 卡住检测：如果位置没变，累计卡住时间
+   const dx=Math.abs(this.tank.x-this._lastX),dy=Math.abs(this.tank.y-this._lastY);
+   if(dx<0.5&&dy<0.5&&this.wantedDir)this._stuckTimer+=dt; else this._stuckTimer=0;
+   this._lastX=this.tank.x;this._lastY=this.tank.y;
+   if(this._stuckTimer>1.0){this.unstuck();this._stuckTimer=0;return;}
    if(this.dirTimer<=0){this.chooseDir();this.dirTimer=this.getInterval();}
    if(this.fireTimer<=0){this.wantsFire=true;this.fireTimer=this.getFireCD();}
    else this.wantsFire=false;
@@ -74,6 +80,26 @@ class AI{
    for(let i=ds.length-1;i>0;i--){const j=randInt(0,i);[ds[i],ds[j]]=[ds[j],ds[i]];}
    for(const d of ds)if(!this.isBlocked(d))return d;
    return['up','down','left','right'][randInt(0,3)];
+  }
+  unstuck(){
+   // 卡住脱困：先对齐到最近的格子中心，再尝试所有方向
+   const t=this.tank;
+   const snap=v=>Math.round((v-CELL/2)/CELL)*CELL+CELL/2;
+   const ox=t.x,oy=t.y;
+   // 尝试水平对齐
+   t.x=snap(t.x);
+   if(t.fits(t.x,t.y)){this.wantedDir='left';t.dirKey='left';return;}
+   t.x=ox;
+   // 尝试垂直对齐
+   t.y=snap(t.y);
+   if(t.fits(t.x,t.y)){this.wantedDir='up';t.dirKey='up';return;}
+   t.y=oy;
+   // 尝试反方向
+   const opp={up:'down',down:'up',left:'right',right:'left'};
+   const reverse=opp[this.wantedDir]||'right';
+   if(!this.isBlocked(reverse)){this.wantedDir=reverse;return;}
+   // 最后尝试所有方向（含随机）
+   this.wantedDir=this.openDir();
   }
  dodgeBullets(){
   for(const b of this.game.bullets){

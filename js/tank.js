@@ -57,7 +57,10 @@ function separateTanks(a,b){
  a.y=clamp(a.y,TANK_HALF,FIELD_H-TANK_HALF);
  b.x=clamp(b.x,TANK_HALF,FIELD_W-TANK_HALF);
  b.y=clamp(b.y,TANK_HALF,FIELD_H-TANK_HALF);
- if(!a.fits(a.x,a.y)||!b.fits(b.x,b.y)){a.x=ax;a.y=ay;b.x=bx;b.y=by;}
+ // 智能分离：只回退卡住的那一方，避免双方都回退导致永久卡住
+ if(!a.fits(a.x,a.y)&&!b.fits(b.x,b.y)){a.x=ax;a.y=ay;b.x=bx;b.y=by;}
+ else if(!a.fits(a.x,a.y)){a.x=ax;a.y=ay;}
+ else if(!b.fits(b.x,b.y)){b.x=bx;b.y=by;}
 }
 class Tank{
  constructor(id,cfg,game,tankClass){
@@ -65,6 +68,7 @@ class Tank{
   this.x=cfg.c*CELL+CELL/2;this.y=cfg.r*CELL+CELL/2;
   this.dirKey=cfg.face;
   this.color=cfg.color;this.name=cfg.name;this.keys=cfg.keys;
+  this.isPlayer=(id===0);
   // 应用车型属性
   const cls=getTankClass(tankClass||'medium');
   this.tankClass=tankClass||'medium';
@@ -78,6 +82,7 @@ class Tank{
   this.buff={shield:0,speed:0,rapid:0,power:0,freeze:0,ghost:0,mega:0,scatter:0};
   this.buffMax={shield:1,speed:1,rapid:1,power:1,freeze:1,ghost:1,mega:1,scatter:1};
   this.inGrass=false;
+  this._lastBuffKeys=new Set();
  }
  get dir(){return DIRS[this.dirKey];}
    fits(x,y){
@@ -111,6 +116,13 @@ class Tank{
    const megaDmg=mega?1.2:1;
    const baseDmg=this.baseDamage||NORMAL_DMG;
    const baseCd=this.baseCooldown||COOLDOWN;
+   // 应用组合伤害加成
+   let comboDmgMult=1;
+   if(this.game.comboSystem){
+    if(this.game.comboSystem.hasCombo('boss'))comboDmgMult=1.5;
+    else if(this.game.comboSystem.hasCombo('icefire'))comboDmgMult=1.3;
+    else if(this.game.comboSystem.hasCombo('ghost_combo'))comboDmgMult=1.2;
+   }
    if(scatter){
     const baseAngle=Math.atan2(d.y,d.x);
     const spread=[-0.35,0,0.35];
@@ -119,12 +131,12 @@ class Tank{
      const bx=this.x+Math.cos(a)*(TANK_HALF+9);
      const by=this.y+Math.sin(a)*(TANK_HALF+9);
      const dirKey2=off===0?this.dirKey:(off<0?'left':'right');
-     this.game.bullets.push(new Bullet(this,bx,by,dirKey2,{damage:baseDmg*megaDmg,big:false,angle:a}));
+     this.game.bullets.push(new Bullet(this,bx,by,dirKey2,{damage:baseDmg*megaDmg*comboDmgMult,big:false,angle:a}));
     }
     this.cool=RAPID_CD;this.recoil=4;
    }else{
     this.game.bullets.push(new Bullet(this,nx,ny,this.dirKey,{
-     damage:(heavy?HEAVY_DMG:baseDmg)*megaDmg,big:heavy||rapid
+     damage:(heavy?HEAVY_DMG:baseDmg)*megaDmg*comboDmgMult,big:heavy||rapid
     }));
     this.cool=rapid?RAPID_CD:baseCd;this.recoil=heavy?6:4;
    }
@@ -170,6 +182,16 @@ class Tank{
   this.invuln=Math.max(0,this.invuln-dt);
   this.cool-=dt;
   this.recoil=Math.max(0,this.recoil-dt*26);
+  // 同步组合系统：添加新buff / 移除过期buff
+  if(this.game.comboSystem){
+   const curKeys=new Set();
+   for(const k in this.buff)if(this.buff[k]>0)curKeys.add(k);
+   for(const k of this._lastBuffKeys){
+    if(!curKeys.has(k))this.game.comboSystem.removeBuff(k);
+   }
+   for(const k of curKeys)this.game.comboSystem.addBuff(k,this.buff[k]);
+   this._lastBuffKeys=curKeys;
+  }
   if(!this.alive)return;
   if(this.buff.freeze>0){
    if(chance(dt*7))this.game.parts.snow(this.x,this.y);
@@ -204,7 +226,7 @@ class Tank{
     if(mine<cap)this.fire();
    }
  }
-  draw(ctx,time){
+  draw(ctx,time,dt){
    if(!this.alive)return;
    ctx.save();
    // 草丛隐蔽：在草丛中半透明
