@@ -228,6 +228,8 @@ class Game{
     if(Input.pressed('Digit1'))this.gameMode=0;
     if(Input.pressed('Digit2'))this.gameMode=1;
     if(Input.pressed('Digit3'))this.gameMode=2;
+    if(Input.pressed('Digit4'))this.gameMode=3; // 基地保卫战
+    if(Input.pressed('Digit5'))this.gameMode=4; // 护送装甲车
     if(Input.pressed('ArrowLeft'))this.mapIdx=(this.mapIdx+MAP_DEFS.length-1)%MAP_DEFS.length;
     if(Input.pressed('ArrowRight'))this.mapIdx=(this.mapIdx+1)%MAP_DEFS.length;
     if(Input.pressed('ArrowUp')){const row=Math.floor(this.mapIdx/6);if(row>0)this.mapIdx-=6;}
@@ -368,7 +370,8 @@ class Game{
    ctx.textAlign='center';ctx.font='bold 26px '+FONT;ctx.fillStyle='#ffd23f';
    ctx.fillText('第 '+this.roundNum+' 局',CX,14);
    ctx.font='16px '+FONT;ctx.fillStyle='#5a6478';
-   const ml=this.gameMode===0?'单人 · '+['简单','普通','困难'][this.aiDifficulty]+' ×'+this.aiCount:this.gameMode===2?'协作 · '+['简单','普通','困难'][this.aiDifficulty]+' ×'+this.aiCount:'双人对战';
+   const modeLabels=['单人','双人','协作','基地保卫战','护送装甲车'];
+   const ml=this.gameMode===0||this.gameMode===2||this.gameMode===3||this.gameMode===4?modeLabels[this.gameMode]+' · '+['简单','普通','困难'][this.aiDifficulty]+' ×'+this.aiCount:'双人对战';
    ctx.fillText(MAP_DEFS[this.mapIdx].name+' · '+ml+' · 先胜'+WIN_ROUNDS,CX,VIEW_H-20);
    if(AudioSys.muted){ctx.fillStyle='#5a6478';ctx.fillText('🔇 静音中',CX,VIEW_H-40);}
    ctx.font='16px '+FONT;ctx.fillStyle='#3a4255';
@@ -534,14 +537,15 @@ class Game{
   ctx.fillText('坦 克 大 战',CX,68);ctx.shadowBlur=0;
   ctx.font='bold 16px '+FONT;ctx.fillStyle='#5a6478';
   ctx.fillText('OUBAO TANK ARENA · 本地对战',CX,104);
-  const btnW=200,btnH=42,btnGap=18,btnX=CX-(btnW*3+btnGap*2)/2;
-  for(let m=0;m<3;m++){
+  const modeNames=['单人 [1]','双人 [2]','协作 [3]','基地 [4]','护送 [5]'];
+  const btnW=110,btnH=36,btnGap=8,btnX=CX-(modeNames.length*(btnW+btnGap)-btnGap)/2;
+  for(let m=0;m<modeNames.length;m++){
    const bx=btnX+m*(btnW+btnGap),sel=this.gameMode===m;
    if(sel){ctx.shadowColor='#ffd23f';ctx.shadowBlur=14;}
-   ctx.fillStyle=sel?'#ffd23f':'rgba(22,28,40,0.95)';rr(ctx,bx,126,btnW,btnH,8);ctx.fill();
-   ctx.strokeStyle=sel?'#ffd23f':'#252d3d';ctx.lineWidth=1;rr(ctx,bx,126,btnW,btnH,8);ctx.stroke();ctx.shadowBlur=0;
-   ctx.fillStyle=sel?'#0b0d12':'#7a8599';ctx.font='bold 16px '+FONT;
-   ctx.fillText(['单人对战 [1]','双人对战 [2]','协作对战 [3]'][m],bx+btnW/2,126+btnH/2);
+   ctx.fillStyle=sel?'#ffd23f':'rgba(22,28,40,0.95)';rr(ctx,bx,128,btnW,btnH,6);ctx.fill();
+   ctx.strokeStyle=sel?'#ffd23f':'#252d3d';ctx.lineWidth=1;rr(ctx,bx,128,btnW,btnH,6);ctx.stroke();ctx.shadowBlur=0;
+   ctx.fillStyle=sel?'#0b0d12':'#7a8599';ctx.font='bold 14px '+FONT;
+   ctx.fillText(modeNames[m],bx+btnW/2,128+btnH/2);
   }   ctx.font='16px '+FONT;ctx.fillStyle='#5a6478';ctx.fillText('← → ↑ ↓ 选择地图',CX,188);
   const tw=140,th=76,gap=10,perRow=6,rows2=2;
   const gridW=perRow*tw+(perRow-1)*gap,gridX=CX-gridW/2,rowH=th+22,gridTop=206;
