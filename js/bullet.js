@@ -57,7 +57,24 @@ class Bullet{
   for(const tk of game.tanks){
     if(tk===this.owner||!tk.alive)continue;
     if((tk.ai===null)===(this.owner.ai===null))continue;    if(Math.abs(this.x-tk.x)<CONFIG.BULLET_HIT_RANGE&&Math.abs(this.y-tk.y)<CONFIG.BULLET_HIT_RANGE){
-    tk.takeDamage(this.damage,this.owner,game);
+    // 物理系统计算伤害
+    const phys=game.physics.calculateDamage(tk,{x:this.x,y:this.y},this.damage);
+    if(phys.isRicochet){
+     game.parts.ring(tk.x,tk.y,'#c0c8d4',16,3,0.3);
+     game.parts.spark(tk.x,tk.y,'#e8edf5',8,120);
+     AudioSys.clink();
+     game.parts.text(tk.x,tk.y-40,'跳弹！','#c0c8d4',16);
+    }else if(phys.isBackHit){
+     game.parts.ring(tk.x,tk.y,'#ff5555',20,4,0.35);
+     game.parts.spark(tk.x,tk.y,'#ff8888',10,140);
+     AudioSys.thud();
+     game.parts.text(tk.x,tk.y-40,'暴击！','#ff5555',18);
+    }
+    if(phys.isTrackStun){
+     tk.buff.slow=1.5;tk.buffMax.slow=1.5;
+     game.parts.text(tk.x,tk.y-55,'断履带！','#ffaa33',14);
+    }
+    tk.takeDamage(phys.damage,this.owner,game);
     this.dead=true;return;
    }
   }

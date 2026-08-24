@@ -77,6 +77,7 @@ class Tank{
   this.stats=this.game.matchStats[id];
   this.buff={shield:0,speed:0,rapid:0,power:0,freeze:0,ghost:0,mega:0,scatter:0};
   this.buffMax={shield:1,speed:1,rapid:1,power:1,freeze:1,ghost:1,mega:1,scatter:1};
+  this.inGrass=false;
  }
  get dir(){return DIRS[this.dirKey];}
    fits(x,y){
@@ -190,6 +191,15 @@ class Tank{
      const baseSpd=this.baseSpeed||TANK_SPEED;
      let spd=this.buff.speed>0?SPEED_BOOSTED:baseSpd;
      if(this.buff.slow>0)spd*=0.4;
+     // 水面减速：轻型可通行但减速40%，重型无法通行
+     if(this.game&&this.game.world){
+      const nc=Math.floor((this.x+d.x*spd*dt*2)/CELL);
+      const nr=Math.floor((this.y+d.y*spd*dt*2)/CELL);
+      if(nc>=0&&nc<COLS&&nr>=0&&nr<ROWS&&this.game.world.at(nc,nr)==='W'){
+       if(this.tankClass==='light')spd*=0.6;
+       else{spd=0;}
+      }
+     }
      moved=this.tryMove(d.x*spd*dt,d.y*spd*dt);
     }
     if(moved)this.tread+=dt*(this.buff.speed>0?SPEED_BOOSTED:(this.baseSpeed||TANK_SPEED));
@@ -203,6 +213,14 @@ class Tank{
   draw(ctx,time){
    if(!this.alive)return;
    ctx.save();
+   // 草丛隐蔽：在草丛中半透明
+   if(this.game&&this.game.world){
+    const gc=Math.floor(this.x/CELL),gr=Math.floor(this.y/CELL);
+    if(gc>=0&&gc<COLS&&gr>=0&&gr<ROWS&&this.game.world.at(gc,gr)==='G'){
+     ctx.globalAlpha=0.35;
+     this.inGrass=true;
+    }else{this.inGrass=false;}
+   }
    if(this.invuln>0&&Math.floor(time*12)%2===0)ctx.globalAlpha=0.35;
    const megaOn=this.buff.mega>0;
    const tankScale=this.scale||1;

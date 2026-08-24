@@ -40,6 +40,7 @@ class Game{
  this.comboSystem=new ComboSystem();
  this.comboNotify=[]; // [{text,color,timer}]
  this.bgm=new BGM();
+ this.physics=new Physics();
  }
  start(){requestAnimationFrame(ts=>this.loop(ts));}
  loop(ts){
