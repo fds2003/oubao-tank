@@ -181,6 +181,7 @@ js/
 ├── leaderboard.js        家庭排行榜（多玩家+按胜场排序）
 ├── combos.js             道具组合系统（4种组合效果）
 ├── bgm.js                背景音乐（Web Audio API程序化生成）
+├── physics.js            物理系统（跳弹/弱点/履带）
 ├── game.js               游戏主循环、spawnAI、车型选择UI、所有UI绘制
 └── main.js               启动入口
 ```
@@ -259,9 +260,10 @@ menu → countdown → play → round → (match | countdown)
 | leaderboard.js | 123 | 家庭排行榜（多玩家+排名） |
 | combos.js | 108 | 道具组合系统（4种组合效果） |
 | bgm.js | 163 | 背景音乐（Web Audio API程序化生成） |
-| game.js | 701 | 游戏主循环+spawnAI+车型选择UI+成就/排行榜+组合/BGM+所有UI绘制 |
+| physics.js | 126 | 物理系统（跳弹/弱点/履带） |
+| game.js | 702 | 游戏主循环+spawnAI+车型选择UI+成就/排行榜+组合/BGM+物理+所有UI绘制 |
 | main.js | 14 | 启动入口 |
-| **合计** | **~3210** | |
+| **合计** | **~3336** | |
 
 ---
 
@@ -283,7 +285,8 @@ menu → countdown → play → round → (match | countdown)
 | test-leaderboard | 25 | ✓ |
 | test-combos | 23 | ✓ |
 | test-bgm | 21 | ✓ |
-| **合计** | **313** | **✓ 全部通过** |
+| test-physics | 39 | ✓ |
+| **合计** | **352** | **✓ 全部通过** |
 
 ---
 
@@ -291,6 +294,7 @@ menu → countdown → play → round → (match | countdown)
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| v2.1 | 2026-08-24 | 物理系统：跳弹/背部暴击/断履带/草丛隐蔽/水面减速 |
 | v2.0 | 2026-08-24 | 道具组合（4种组合）+ 背景音乐（3首曲目）+ 组合特效 |
 | v1.4 | 2026-08-24 | 成就系统（10个成就）+ 家庭排行榜 + 结算统计 |
 | v1.3 | 2026-08-24 | 车型系统：轻/中/重/突击炮分化 + 穿墙能力 + AI智能选车 |
