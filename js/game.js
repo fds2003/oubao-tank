@@ -463,16 +463,18 @@ class Game{
   let aiCtrlH=0;
   if(this.gameMode===0||this.gameMode===2){
    const ay=gridBot+4,diffNames=['简单','普通','困难'],diffColors=['#5dff70','#ffd23f','#ff5d5d'];
-   ctx.font='16px '+FONT;ctx.fillStyle='#7a8599';ctx.textAlign='right';ctx.fillText('难度',CX-120,ay+16);
+   const diffStartX=CX-180;
+   ctx.font='16px '+FONT;ctx.fillStyle='#7a8599';ctx.textAlign='right';ctx.fillText('难度',diffStartX-8,ay+16);
    for(let i=0;i<3;i++){
-    const dx=CX-105+i*70,sel=this.aiDifficulty===i;
-    ctx.fillStyle=sel?diffColors[i]:'rgba(22,28,40,0.95)';rr(ctx,dx,ay,62,30,6);ctx.fill();
-    ctx.strokeStyle=sel?diffColors[i]:'#252d3d';rr(ctx,dx,ay,62,30,6);ctx.stroke();
+    const dx=diffStartX+i*72,sel=this.aiDifficulty===i;
+    ctx.fillStyle=sel?diffColors[i]:'rgba(22,28,40,0.95)';rr(ctx,dx,ay,66,30,6);ctx.fill();
+    ctx.strokeStyle=sel?diffColors[i]:'#252d3d';rr(ctx,dx,ay,66,30,6);ctx.stroke();
     ctx.fillStyle=sel?'#0b0d12':'#5a6478';ctx.font='bold 15px '+FONT;ctx.textAlign='center';
-    ctx.fillText(diffNames[i],dx+31,ay+15);
+    ctx.fillText(diffNames[i],dx+33,ay+15);
    }
-   ctx.textAlign='left';ctx.font='16px '+FONT;ctx.fillStyle='#7a8599';ctx.fillText('数量',CX+88,ay+16);
-   ctx.fillStyle='#ffd23f';ctx.font='bold 28px '+FONT;ctx.textAlign='center';ctx.fillText(this.aiCount,CX+136,ay+14);
+   const countX=diffStartX+3*72+30;
+   ctx.textAlign='left';ctx.font='16px '+FONT;ctx.fillStyle='#7a8599';ctx.fillText('数量',countX,ay+16);
+   ctx.fillStyle='#ffd23f';ctx.font='bold 28px '+FONT;ctx.textAlign='center';ctx.fillText(this.aiCount,countX+60,ay+14);
    ctx.font='13px '+FONT;ctx.fillStyle='#3a4255';ctx.fillText('[Q] 难度   [Z−] [X+] 数量',CX,ay+50);
    aiCtrlH=62;
   }
