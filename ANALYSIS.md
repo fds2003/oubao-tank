@@ -132,7 +132,8 @@
 | test-dynamic-difficulty | 38 | ✓ 全部通过 |
 | test-newplayer-protection | 12 | ✓ 全部通过 |
 | test-damage-flash | 8 | ✓ 全部通过 |
-| **合计** | **144** | **✓** |
+| test-tank-classes | 66 | ✓ 全部通过 |
+| **合计** | **210** | **✓** |
 
 ### v1.2 新手体验优化（2026-08-24）
 
@@ -142,6 +143,16 @@
 | 动态难度调整 | dynamic-difficulty.js | 连赢升难/连败降难 |
 | 新手保护机制 | dynamic-difficulty.js | 前3局AI开火冷却×1.5 |
 | 受伤屏幕闪红 | game.js + tank.js | 玩家受伤时屏幕边缘红色渐变 |
+
+### v1.3 车型系统（2026-08-24）
+
+| 功能 | 文件 | 说明 |
+|------|------|------|
+| 车型定义 | tank-classes.js | 4种车型数据（轻/中/重/突击炮） |
+| Tank类修改 | tank.js | 支持车型属性（HP/速度/伤害/冷却/体型） |
+| 穿墙能力 | bullet.js | 突击炮子弹可穿透砖墙 |
+| 车型选择UI | game.js | 主菜单C/V切换车型 |
+| AI智能选车 | tank-classes.js | 简单随机/普通克制/困难针对 |
 
 ### 重构验证（2026-08-24）
 
