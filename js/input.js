@@ -1,5 +1,5 @@
 'use strict';
-const GAME_KEYS=new Set(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space','Enter','KeyW','KeyA','KeyS','KeyD','KeyF','KeyL','Escape','KeyP','KeyM','KeyR','Digit1','Digit2','Digit3','Digit4']);
+const GAME_KEYS=new Set(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space','Enter','KeyW','KeyA','KeyS','KeyD','KeyF','KeyL','Escape','KeyP','KeyM','KeyR','Digit1','Digit2','Digit3','Digit4','Digit5']);
 const Input={
  held:new Set(),taps:new Set(),
  init(){

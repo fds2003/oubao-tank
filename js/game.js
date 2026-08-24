@@ -41,6 +41,8 @@ class Game{
  this.comboNotify=[]; // [{text,color,timer}]
  this.bgm=new BGM();
  this.physics=new Physics();
+ this.baseDefense=null;
+ this.convoyEscort=null;
  }
  start(){requestAnimationFrame(ts=>this.loop(ts));}
  loop(ts){
@@ -109,10 +111,15 @@ class Game{
   startMatch(i){
    this.mapIdx=i;this.scores=[0,0];this.roundNum=1;
    this.matchWinner=-1;
-   const n=this.gameMode===1?2:(this.gameMode===2?2+this.aiCount:1+this.aiCount);
+   // gameMode 3=基地保卫战, 4=护送装甲车 使用1+AI配置
+   const isSpecialMode=this.gameMode===3||this.gameMode===4;
+   const n=this.gameMode===1?2:(this.gameMode===2?2+this.aiCount:(isSpecialMode?1+this.aiCount:1+this.aiCount));
    this.matchStats=[];for(let j=0;j<n;j++)this.matchStats.push({shots:0,hits:0,dmg:0});
    this.fade=0;this.fadeTarget=1;
-  this.startRound();
+   // 初始化特殊模式
+   if(this.gameMode===3)this.baseDefense=new BaseDefense();
+   if(this.gameMode===4)this.convoyEscort=new ConvoyEscort();
+   this.startRound();
  }
  spawnAI(id,spawnPt,color,name,playerClass){
   const aiClass=selectAITankClass(this.dynamicDifficulty.getEffectiveDifficulty(),playerClass);
@@ -130,7 +137,8 @@ class Game{
   this.world=new World(MAP_DEFS[this.mapIdx]);
   const s1=this.world.spawns[0],s2=this.world.spawns[1];
   const playerClass=this.playerTankClass||'medium';
-  if(this.gameMode===0){
+  if(this.gameMode===0||this.gameMode===3||this.gameMode===4){
+   // 单人/基地保卫战/护送装甲车：1个玩家+AI
    while(this.matchStats.length<1+this.aiCount)this.matchStats.push({shots:0,hits:0,dmg:0});
    this.tanks=[new Tank(0,{c:s1.c,r:s1.r,face:'right',color:'#38bdf8',name:'玩家',keys:P1_KEYS},this,playerClass)];
    for(let i=0;i<this.aiCount;i++)this.spawnAI(i+1,s2,AI_COLORS[i],AI_NAMES[i],playerClass);
@@ -142,6 +150,7 @@ class Game{
    ];
    for(let i=0;i<this.aiCount;i++)this.spawnAI(i+2,s1,AI_COLORS_COOP[i],AI_NAMES_COOP[i],playerClass);
   }else{
+   // 双人对战
    this.matchStats.length=2;
    this.tanks=[
     new Tank(0,{c:s1.c,r:s1.r,face:'right',color:'#38bdf8',name:'玩家 1',keys:P1_KEYS},this,playerClass),
@@ -178,9 +187,23 @@ class Game{
   for(const p of this.powerups)for(const t of this.tanks)
    if(!p.picked&&t.alive&&dist(p.x,p.y,t.x,t.y)<CONFIG.POWERUP_PICKUP_RANGE){p.picked=true;applyPower(this,t,p.type);if(t.isPlayer)this._checkCombo(p.type);}
   this.powerups=this.powerups.filter(p=>!p.picked);
-  if(this.gameMode===0){
+  if(this.gameMode===0||this.gameMode===3||this.gameMode===4){
    const pDead=!this.tanks[0].alive,aiDead=this.tanks.slice(1).every(t=>!t.alive);
-   if(pDead||aiDead){
+   // 特殊模式额外胜利条件
+   let specialWin=null;
+   if(this.gameMode===3&&this.baseDefense){
+    specialWin=this.baseDefense.checkWin(aiDead,!this.baseDefense.hq.alive);
+   }else if(this.gameMode===4&&this.convoyEscort){
+    this.convoyEscort.updateTransport(dt);
+    specialWin=this.convoyEscort.checkWin(aiDead,false);
+   }
+   if(specialWin==='player_win'||specialWin==='escort_complete'){
+    this.scores[0]++;this.roundWinner=0;this.dynamicDifficulty.recordWin();
+    this.dynamicDifficulty.recordGame();this.bannerT=2.6;this.state='round';
+   }else if(specialWin==='hq_destroyed'||specialWin==='transport_destroyed'){
+    this.scores[1]++;this.roundWinner=1;this.dynamicDifficulty.recordWin();
+    this.dynamicDifficulty.recordGame();this.bannerT=2.6;this.state='round';
+   }else if(pDead||aiDead){
     if(pDead&&aiDead)this.roundWinner=-1;
     else if(pDead){this.scores[1]++;this.roundWinner=1;this.dynamicDifficulty.recordWin();}
     else{this.scores[0]++;this.roundWinner=0;this.dynamicDifficulty.recordLoss();}
@@ -469,7 +492,7 @@ class Game{
   if(this.roundWinner<0){ctx.globalAlpha=a;ctx.font='bold 60px '+FONT;ctx.fillStyle='#c7d0de';ctx.fillText('平 局 ！',VIEW_W/2,cy-24);}
   else{
    let msg,color;
-   if(this.gameMode===0){msg=this.roundWinner===0?'玩家 得分！':'AI 阵营 得分！';color=this.roundWinner===0?'#38bdf8':'#ff8c42';}
+   if(this.gameMode===0||this.gameMode===3||this.gameMode===4){msg=this.roundWinner===0?'玩家 得分！':'AI 阵营 得分！';color=this.roundWinner===0?'#38bdf8':'#ff8c42';}
    else if(this.gameMode===2){msg=this.roundWinner===0?'玩家阵营 得分！':'AI 阵营 得分！';color=this.roundWinner===0?'#38bdf8':'#ff8c42';}
    else{msg=this.tanks[this.roundWinner].name+' 得分！';color=this.tanks[this.roundWinner].color;}
    ctx.globalAlpha=a;ctx.font='bold 60px '+FONT;ctx.fillStyle=color;ctx.shadowColor=color;ctx.shadowBlur=26;
@@ -489,7 +512,7 @@ class Game{
  drawMatchEnd(ctx){
   ctx.fillStyle='rgba(4,6,10,0.82)';ctx.fillRect(0,0,VIEW_W,VIEW_H);
   let winName,winColor;
-  if(this.gameMode===0){winName=this.matchWinner===0?'玩家':'AI 阵营';winColor=this.matchWinner===0?'#38bdf8':'#ff8c42';}
+  if(this.gameMode===0||this.gameMode===3||this.gameMode===4){winName=this.matchWinner===0?'玩家':'AI 阵营';winColor=this.matchWinner===0?'#38bdf8':'#ff8c42';}
   else if(this.gameMode===2){winName=this.matchWinner===0?'玩家阵营':'AI 阵营';winColor=this.matchWinner===0?'#38bdf8':'#ff8c42';}
   else{winName=this.tanks[this.matchWinner].name;winColor=this.tanks[this.matchWinner].color;}
   this.drawCrownPath(ctx,VIEW_W/2,180,36,'#ffd23f');
