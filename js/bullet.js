@@ -41,6 +41,10 @@ class Bullet{
    game.parts.ring(this.x,this.y,'#ffb35c',20,2,0.2);
    AudioSys.crack();
    game.addShake(1.5);
+   // 突击炮穿墙：销毁砖墙后子弹继续飞行
+   if(this.owner.pierce){
+    return;
+   }
    if(this.damage>=HEAVY_DMG){
     const nc=c+this.dir.x,nr=r+this.dir.y;
     if(game.world.at(nc,nr)==='B'){

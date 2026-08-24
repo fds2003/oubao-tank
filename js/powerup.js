@@ -206,7 +206,7 @@ function applyPower(game,tank,type){
   }
   return;
  }
- if(type==='heal'){   tank.hp=Math.min(HP_MAX,tank.hp+CONFIG.HEAL_AMOUNT);
+ if(type==='heal'){   tank.hp=Math.min(tank.maxHp||HP_MAX,tank.hp+CONFIG.HEAL_AMOUNT);
   AudioSys.pickup();
   game.parts.spark(tank.x,tank.y,info.color,10,140);
   game.parts.text(tank.x,tank.y-30,'+'+CONFIG.HEAL_AMOUNT+' HP',info.color);
@@ -219,7 +219,7 @@ function applyPower(game,tank,type){
   game.parts.text(tank.x,tank.y-30,'地雷已部署！',info.color);
   return;
  }
- if(type==='mega'){   tank.hp=Math.min(HP_MAX+CONFIG.MEGA_HP_BONUS,tank.hp+CONFIG.MEGA_HP_BONUS);
+ if(type==='mega'){   tank.hp=Math.min((tank.maxHp||HP_MAX)+CONFIG.MEGA_HP_BONUS,tank.hp+CONFIG.MEGA_HP_BONUS);
   tank.buff.mega=CONFIG.MEGA_DURATION;tank.buffMax.mega=CONFIG.MEGA_DURATION;
   AudioSys.pickup();
   game.parts.ring(tank.x,tank.y,info.color,36,3,0.35);

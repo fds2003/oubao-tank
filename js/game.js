@@ -29,6 +29,9 @@ class Game{
  this.tutorial=new Tutorial();
  if(Tutorial.shouldShow())this.tutorial.start();
  this.dynamicDifficulty=new DynamicDifficulty();
+ this.playerTankClass='medium';
+ this.tankClassList=getTankClassList();
+ this.tankClassIndex=1;
  }
  start(){requestAnimationFrame(ts=>this.loop(ts));}
  loop(ts){
@@ -49,36 +52,38 @@ class Game{
    this.fade=0;this.fadeTarget=1;
   this.startRound();
  }
- spawnAI(id,spawnPt,color,name){
+ spawnAI(id,spawnPt,color,name,playerClass){
+  const aiClass=selectAITankClass(this.dynamicDifficulty.getEffectiveDifficulty(),playerClass);
   for(const off of SAFE_OFFSETS){
    const tc=spawnPt.c+off.c,tr=spawnPt.r+off.r;
    if(tc>=1&&tc<COLS-1&&tr>=1&&tr<ROWS-1&&!this.world.solidTank(tc,tr)){
-    const t=new Tank(id,{c:tc,r:tr,face:'left',color,name,keys:{up:0,down:0,left:0,right:0,fire:[]}},this);
+    const t=new Tank(id,{c:tc,r:tr,face:'left',color,name,keys:{up:0,down:0,left:0,right:0,fire:[]}},this,aiClass);
     t.ai=new AI(t,this,this.dynamicDifficulty.getEffectiveDifficulty());this.tanks.push(t);return;
    }
   }
-  const t=new Tank(id,{c:spawnPt.c,r:spawnPt.r,face:'left',color,name,keys:{up:0,down:0,left:0,right:0,fire:[]}},this);
+  const t=new Tank(id,{c:spawnPt.c,r:spawnPt.r,face:'left',color,name,keys:{up:0,down:0,left:0,right:0,fire:[]}},this,aiClass);
   t.ai=new AI(t,this,this.dynamicDifficulty.getEffectiveDifficulty());this.tanks.push(t);
  }
  startRound(){
   this.world=new World(MAP_DEFS[this.mapIdx]);
   const s1=this.world.spawns[0],s2=this.world.spawns[1];
+  const playerClass=this.playerTankClass||'medium';
   if(this.gameMode===0){
    while(this.matchStats.length<1+this.aiCount)this.matchStats.push({shots:0,hits:0,dmg:0});
-   this.tanks=[new Tank(0,{c:s1.c,r:s1.r,face:'right',color:'#38bdf8',name:'玩家',keys:P1_KEYS},this)];
-   for(let i=0;i<this.aiCount;i++)this.spawnAI(i+1,s2,AI_COLORS[i],AI_NAMES[i]);
+   this.tanks=[new Tank(0,{c:s1.c,r:s1.r,face:'right',color:'#38bdf8',name:'玩家',keys:P1_KEYS},this,playerClass)];
+   for(let i=0;i<this.aiCount;i++)this.spawnAI(i+1,s2,AI_COLORS[i],AI_NAMES[i],playerClass);
   }else if(this.gameMode===2){
    while(this.matchStats.length<2+this.aiCount)this.matchStats.push({shots:0,hits:0,dmg:0});
    this.tanks=[
-    new Tank(0,{c:s1.c,r:s1.r,face:'right',color:'#38bdf8',name:'玩家 1',keys:P1_KEYS},this),
-    new Tank(1,{c:s2.c,r:s2.r,face:'right',color:'#34d399',name:'玩家 2',keys:P2_KEYS},this)
+    new Tank(0,{c:s1.c,r:s1.r,face:'right',color:'#38bdf8',name:'玩家 1',keys:P1_KEYS},this,playerClass),
+    new Tank(1,{c:s2.c,r:s2.r,face:'right',color:'#34d399',name:'玩家 2',keys:P2_KEYS},this,playerClass)
    ];
-   for(let i=0;i<this.aiCount;i++)this.spawnAI(i+2,s1,AI_COLORS_COOP[i],AI_NAMES_COOP[i]);
+   for(let i=0;i<this.aiCount;i++)this.spawnAI(i+2,s1,AI_COLORS_COOP[i],AI_NAMES_COOP[i],playerClass);
   }else{
    this.matchStats.length=2;
    this.tanks=[
-    new Tank(0,{c:s1.c,r:s1.r,face:'right',color:'#38bdf8',name:'玩家 1',keys:P1_KEYS},this),
-    new Tank(1,{c:s2.c,r:s2.r,face:'left',color:'#ff8c42',name:'玩家 2',keys:P2_KEYS},this)
+    new Tank(0,{c:s1.c,r:s1.r,face:'right',color:'#38bdf8',name:'玩家 1',keys:P1_KEYS},this,playerClass),
+    new Tank(1,{c:s2.c,r:s2.r,face:'left',color:'#ff8c42',name:'玩家 2',keys:P2_KEYS},this,playerClass)
    ];
   }
   this.bullets=[];this.powerups=[];this.mines=[];this.parts.clear();
@@ -153,6 +158,8 @@ class Game{
     if(Input.pressed('Digit3'))this.gameMode=2;
     if(Input.pressed('ArrowLeft'))this.mapIdx=(this.mapIdx+MAP_DEFS.length-1)%MAP_DEFS.length;
     if(Input.pressed('ArrowRight'))this.mapIdx=(this.mapIdx+1)%MAP_DEFS.length;
+    if(Input.pressed('KeyC')){this.tankClassIndex=(this.tankClassIndex-1+this.tankClassList.length)%this.tankClassList.length;this.playerTankClass=this.tankClassList[this.tankClassIndex];}
+    if(Input.pressed('KeyV')){this.tankClassIndex=(this.tankClassIndex+1)%this.tankClassList.length;this.playerTankClass=this.tankClassList[this.tankClassIndex];}
     if(this.gameMode===0||this.gameMode===2){
      if(Input.pressed('KeyQ'))this.aiDifficulty=(this.aiDifficulty+1)%3;
      if(Input.pressed('KeyZ'))this.aiCount=Math.max(1,this.aiCount-1);
@@ -270,7 +277,7 @@ class Game{
  drawHpBar(ctx,x,y,w,tank,flip){
   ctx.fillStyle='#0e1219';rr(ctx,x,y,w,16,4);ctx.fill();
   ctx.strokeStyle='#1e2636';ctx.lineWidth=1;rr(ctx,x,y,w,16,4);ctx.stroke();
-  const frac=tank.hp/HP_MAX,fw=Math.max(0,(w-4)*frac);
+  const frac=tank.hp/(tank.maxHp||HP_MAX),fw=Math.max(0,(w-4)*frac);
   if(fw>0){
    const c=frac>0.5?tank.color:frac>0.25?'#ffd23f':'#ff5555';
    ctx.fillStyle=c;
@@ -451,6 +458,24 @@ class Game{
    ctx.fillText(MAP_DEFS[i].name,ox+tw/2,oy+th+14);
   }
   const gridBot=gridTop+rows2*rowH+14;
+  // 车型选择
+  const classY=gridBot+8;
+  ctx.font='16px '+FONT;ctx.fillStyle='#7a8599';ctx.textAlign='center';
+  ctx.fillText('选择车型 [C/V]',CX,classY+12);
+  const classW=120,classGap=15,totalW=this.tankClassList.length*classW+(this.tankClassList.length-1)*classGap;
+  const classX=CX-totalW/2;
+  for(let i=0;i<this.tankClassList.length;i++){
+   const cls=TANK_CLASSES[this.tankClassList[i]];
+   const sel=this.playerTankClass===this.tankClassList[i];
+   const cx=classX+i*(classW+classGap);
+   ctx.fillStyle=sel?cls.color:'rgba(22,28,40,0.95)';rr(ctx,cx,classY+20,classW,50,8);ctx.fill();
+   ctx.strokeStyle=sel?cls.color:'#252d3d';ctx.lineWidth=sel?2:1;rr(ctx,cx,classY+20,classW,50,8);ctx.stroke();
+   ctx.fillStyle=sel?'#0b0d12':'#7a8599';ctx.font='bold 14px '+FONT;ctx.textAlign='center';
+   ctx.fillText(cls.icon+' '+cls.name,cx+classW/2,classY+38);
+   ctx.font='11px '+FONT;ctx.fillStyle=sel?'#0b0d12':'#5a6478';
+   ctx.fillText('HP:'+cls.hp+' 速:'+cls.speed,cx+classW/2,classY+55);
+  }
+  const classH=78;
   if(this.gameMode===0||this.gameMode===2){
    const ay=gridBot,diffNames=['简单','普通','困难'],diffColors=['#5dff70','#ffd23f','#ff5d5d'];
    ctx.font='16px '+FONT;ctx.fillStyle='#7a8599';ctx.textAlign='right';ctx.fillText('难度',CX-120,ay+16);
@@ -465,7 +490,7 @@ class Game{
    ctx.fillStyle='#ffd23f';ctx.font='bold 28px '+FONT;ctx.textAlign='center';ctx.fillText(this.aiCount,CX+136,ay+14);
    ctx.font='13px '+FONT;ctx.fillStyle='#3a4255';ctx.fillText('[Q] 难度   [Z−] [X+] 数量',CX,ay+50);
   }
-  const aiH=(this.gameMode===0||this.gameMode===2)?58:0,ctrlY=gridBot+aiH;
+  const aiH=(this.gameMode===0||this.gameMode===2)?58:0,ctrlY=gridBot+classH+aiH;
   const pw=320;
   if(this.gameMode===0)this.drawControlPanel(ctx,CX-pw/2,ctrlY,pw,'操作说明','#38bdf8',[['移动','W A S D'],['开火','F / 空格'],['暂停 P · 静音 M','']]);
   else if(this.gameMode===2){

@@ -60,12 +60,19 @@ function separateTanks(a,b){
  if(!a.fits(a.x,a.y)||!b.fits(b.x,b.y)){a.x=ax;a.y=ay;b.x=bx;b.y=by;}
 }
 class Tank{
- constructor(id,cfg,game){
+ constructor(id,cfg,game,tankClass){
   this.id=id;this.game=game;
   this.x=cfg.c*CELL+CELL/2;this.y=cfg.r*CELL+CELL/2;
   this.dirKey=cfg.face;
   this.color=cfg.color;this.name=cfg.name;this.keys=cfg.keys;
-  this.hp=HP_MAX;this.alive=true;this.ai=null;
+  // 应用车型属性
+  const cls=getTankClass(tankClass||'medium');
+  this.tankClass=tankClass||'medium';
+  this.hp=cls.hp;this.maxHp=cls.hp;
+  this.baseSpeed=cls.speed;this.baseDamage=cls.damage;
+  this.baseCooldown=cls.cooldown;this.scale=cls.scale;
+  this.pierce=cls.pierce||false;
+  this.alive=true;this.ai=null;
   this.cool=0;this.recoil=0;this.tread=0;this.invuln=2;
   this.stats=this.game.matchStats[id];
   this.buff={shield:0,speed:0,rapid:0,power:0,freeze:0,ghost:0,mega:0,scatter:0};
@@ -101,6 +108,8 @@ class Tank{
    const nx=this.x+d.x*(TANK_HALF+9),ny=this.y+d.y*(TANK_HALF+9);
    const heavy=this.buff.power>0,rapid=this.buff.rapid>0,scatter=this.buff.scatter>0,mega=this.buff.mega>0;
    const megaDmg=mega?1.2:1;
+   const baseDmg=this.baseDamage||NORMAL_DMG;
+   const baseCd=this.baseCooldown||COOLDOWN;
    if(scatter){
     const baseAngle=Math.atan2(d.y,d.x);
     const spread=[-0.35,0,0.35];
@@ -109,14 +118,14 @@ class Tank{
      const bx=this.x+Math.cos(a)*(TANK_HALF+9);
      const by=this.y+Math.sin(a)*(TANK_HALF+9);
      const dirKey2=off===0?this.dirKey:(off<0?'left':'right');
-     this.game.bullets.push(new Bullet(this,bx,by,dirKey2,{damage:NORMAL_DMG*megaDmg,big:false,angle:a}));
+     this.game.bullets.push(new Bullet(this,bx,by,dirKey2,{damage:baseDmg*megaDmg,big:false,angle:a}));
     }
     this.cool=RAPID_CD;this.recoil=4;
    }else{
     this.game.bullets.push(new Bullet(this,nx,ny,this.dirKey,{
-     damage:(heavy?HEAVY_DMG:NORMAL_DMG)*megaDmg,big:heavy||rapid
+     damage:(heavy?HEAVY_DMG:baseDmg)*megaDmg,big:heavy||rapid
     }));
-    this.cool=rapid?RAPID_CD:COOLDOWN;this.recoil=heavy?6:4;
+    this.cool=rapid?RAPID_CD:baseCd;this.recoil=heavy?6:4;
    }
   this.stats.shots++;
   this.game.parts.muzzleBlast(nx,ny,this.dirKey,this.color,heavy||scatter);
@@ -178,11 +187,12 @@ class Tank{
    let moved=false;
     if(want){
      const d=DIRS[want];
-     let spd=this.buff.speed>0?SPEED_BOOSTED:TANK_SPEED;
+     const baseSpd=this.baseSpeed||TANK_SPEED;
+     let spd=this.buff.speed>0?SPEED_BOOSTED:baseSpd;
      if(this.buff.slow>0)spd*=0.4;
      moved=this.tryMove(d.x*spd*dt,d.y*spd*dt);
     }
-    if(moved)this.tread+=dt*(this.buff.speed>0?SPEED_BOOSTED:TANK_SPEED);
+    if(moved)this.tread+=dt*(this.buff.speed>0?SPEED_BOOSTED:(this.baseSpeed||TANK_SPEED));
     const cap=Math.max(1,(this.buff.rapid>0?RAPID_BULLETS:MAX_BULLETS)-(this.buff.scatter>0?2:0));
    if(firing&&this.cool<=0){
     let mine=0;
@@ -195,12 +205,10 @@ class Tank{
    ctx.save();
    if(this.invuln>0&&Math.floor(time*12)%2===0)ctx.globalAlpha=0.35;
    const megaOn=this.buff.mega>0;
-   if(megaOn){
-    ctx.translate(this.x,this.y);ctx.scale(1.25,1.25);
-    drawTankBody(ctx,0,0,this.dirKey,this.color,this.tread,this.recoil);
-   }else{
-    drawTankBody(ctx,this.x,this.y,this.dirKey,this.color,this.tread,this.recoil);
-   }
+   const tankScale=this.scale||1;
+   const finalScale=megaOn?1.25:tankScale;
+   ctx.translate(this.x,this.y);ctx.scale(finalScale,finalScale);
+   drawTankBody(ctx,0,0,this.dirKey,this.color,this.tread,this.recoil);
    ctx.restore();
   if(this.buff.ghost>0){
    ctx.save();ctx.globalAlpha=0.18;
@@ -232,7 +240,7 @@ class Tank{
   const bw=44,bh=6,bx=this.x-bw/2,by=this.y-TANK_HALF-14;
   ctx.fillStyle='rgba(10,13,18,0.8)';
   rr(ctx,bx-1,by-1,bw+2,bh+2,2);ctx.fill();
-  const frac=Math.min(1,this.hp/HP_MAX);
+  const frac=Math.min(1,this.hp/(this.maxHp||HP_MAX));
   ctx.fillStyle=frac>0.5?this.color:(frac>0.25?'#ffd23f':'#ff5555');
   if(frac>0)ctx.fillRect(bx,by,bw*frac,bh);
  }
