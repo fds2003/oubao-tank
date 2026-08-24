@@ -315,6 +315,26 @@ class Game{
   ctx.translate(FIELD_X+sx,FIELD_Y+sy);
   ctx.beginPath();ctx.rect(0,0,FIELD_W,FIELD_H);ctx.clip();
   this.world.drawBase(ctx,this.time);
+  // 绘制履带压痕
+  if(!this.trackMarks)this.trackMarks=[];
+  for(const t of this.tanks){
+   if(t.alive&&t.tread>0){
+    // 每隔一段距离添加履带印
+    if(chance(0.15)){
+     this.trackMarks.push({x:t.x,y:t.y,life:6,alpha:0.25});
+    }
+   }
+  }
+  // 绘制并更新履带印
+  ctx.fillStyle='rgba(30,38,54,0.3)';
+  for(let i=this.trackMarks.length-1;i>=0;i--){
+   const tm=this.trackMarks[i];
+   ctx.globalAlpha=tm.alpha*(tm.life/6);
+   ctx.fillRect(tm.x-4,tm.y-2,8,4);
+   tm.life-=0.016;
+   if(tm.life<=0)this.trackMarks.splice(i,1);
+  }
+  ctx.globalAlpha=1;
   for(const m of this.mines)m.draw(ctx);
   for(const p of this.powerups)p.draw(ctx);
   for(const b of this.bullets)b.draw(ctx);
