@@ -11,9 +11,13 @@ class AI{
   return rand(0.35,0.75);
  }
  getFireCD(){
-  if(this.diff==='easy')return rand(0.65,1.1);
-  if(this.diff==='normal')return rand(0.38,0.68);
-  return rand(0.18,0.38);
+  let cd;
+  if(this.diff==='easy')cd=rand(0.65,1.1);
+  else if(this.diff==='normal')cd=rand(0.38,0.68);
+  else cd=rand(0.18,0.38);
+  // 新手保护期：AI开火冷却×1.5
+  if(this.game.dynamicDifficulty)cd*=this.game.dynamicDifficulty.getFireCDMultiplier();
+  return cd;
  }
  getCommand(){return{dir:this.wantedDir,fire:this.wantsFire};}
   update(dt){
