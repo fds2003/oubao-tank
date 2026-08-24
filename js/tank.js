@@ -194,15 +194,6 @@ class Tank{
      const baseSpd=this.baseSpeed||TANK_SPEED;
      let spd=this.buff.speed>0?SPEED_BOOSTED:baseSpd;
      if(this.buff.slow>0)spd*=0.4;
-     // 水面减速：轻型可通行但减速40%，重型无法通行
-     if(this.game&&this.game.world){
-      const nc=Math.floor((this.x+d.x*spd*dt*2)/CELL);
-      const nr=Math.floor((this.y+d.y*spd*dt*2)/CELL);
-      if(nc>=0&&nc<COLS&&nr>=0&&nr<ROWS&&this.game.world.at(nc,nr)==='W'){
-       if(this.tankClass==='light')spd*=0.6;
-       else{spd=0;}
-      }
-     }
      moved=this.tryMove(d.x*spd*dt,d.y*spd*dt);
     }
     if(moved)this.tread+=dt*(this.buff.speed>0?SPEED_BOOSTED:(this.baseSpeed||TANK_SPEED));
