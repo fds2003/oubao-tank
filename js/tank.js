@@ -141,6 +141,8 @@ class Tank{
    game.parts.hitImpact(this.x,this.y,this.color,real,hitDir);
     game.parts.text(this.x,this.y-30,'-'+real,'#ff8585',18+real*0.06);
   AudioSys.thud();
+  // 玩家受伤时触发屏幕闪红
+  if(this.id===0)game.triggerDamageFlash();
   if(this.hp<=0){
    this.hp=0;this.alive=false;
    game.parts.explosion(this.x,this.y,this.color);

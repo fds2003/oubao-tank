@@ -128,7 +128,20 @@
 | test-effects | 14 | ✓ 全部通过 |
 | test-draw2 | 7 | ✓ 全部通过 |
 | test-newpowerups | 10 | ✓ 全部通过 |
-| **合计** | **53** | **✓** |
+| test-tutorial | 33 | ✓ 全部通过 |
+| test-dynamic-difficulty | 38 | ✓ 全部通过 |
+| test-newplayer-protection | 12 | ✓ 全部通过 |
+| test-damage-flash | 8 | ✓ 全部通过 |
+| **合计** | **144** | **✓** |
+
+### v1.2 新手体验优化（2026-08-24）
+
+| 功能 | 文件 | 说明 |
+|------|------|------|
+| 新手引导系统 | tutorial.js | 5步教程，localStorage持久化 |
+| 动态难度调整 | dynamic-difficulty.js | 连赢升难/连败降难 |
+| 新手保护机制 | dynamic-difficulty.js | 前3局AI开火冷却×1.5 |
+| 受伤屏幕闪红 | game.js + tank.js | 玩家受伤时屏幕边缘红色渐变 |
 
 ### 重构验证（2026-08-24）
 
