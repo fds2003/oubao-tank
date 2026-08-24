@@ -512,12 +512,12 @@ class Game{
   const infoY=ctrlY+ctrlH+14;
   ctx.font='15px '+FONT;ctx.fillStyle='#4a5468';
   ctx.fillText('先胜'+WIN_ROUNDS+'局 · 砖墙可碎 · 钢墙无敌 · 水面阻坦克 · 草丛藏身',CX,infoY);
-  const items=Object.keys(POWER_TYPES),pGap=115,iy=infoY+32;
+  const items=Object.keys(POWER_TYPES),pGap=120,iy=infoY+32;
   for(let i=0;i<items.length;i++){
    const ix=CX-(items.length-1)*pGap/2+i*pGap;
-   ctx.save();ctx.translate(ix,iy);ctx.scale(1.4,1.4);drawPowerIcon(ctx,items[i],9);ctx.restore();
-   ctx.font='13px '+FONT;ctx.fillStyle='#7a8599';ctx.fillText(POWER_TYPES[items[i]].name,ix,iy+24);
-   ctx.font='11px '+FONT;ctx.fillStyle='#5a6478';ctx.fillText(POWER_TYPES[items[i]].desc,ix,iy+38);
+   ctx.save();ctx.translate(ix,iy);ctx.scale(1.5,1.5);drawPowerIcon(ctx,items[i],9);ctx.restore();
+   ctx.font='bold 15px '+FONT;ctx.fillStyle='#c7d0de';ctx.fillText(POWER_TYPES[items[i]].name,ix,iy+26);
+   ctx.font='12px '+FONT;ctx.fillStyle='#7a8599';ctx.fillText(POWER_TYPES[items[i]].desc,ix,iy+42);
   }
   const startY=iy+54,pa=clamp(0.5+Math.sin(t*3)*0.5,0,1);
   ctx.globalAlpha=pa;ctx.font='bold 28px '+FONT;ctx.fillStyle='#ffd23f';
