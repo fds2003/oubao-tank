@@ -458,8 +458,25 @@ class Game{
    ctx.fillText(MAP_DEFS[i].name,ox+tw/2,oy+th+14);
   }
   const gridBot=gridTop+rows2*rowH+14;
+  // AI难度和数量（单人/协作模式）
+  let aiCtrlH=0;
+  if(this.gameMode===0||this.gameMode===2){
+   const ay=gridBot+4,diffNames=['简单','普通','困难'],diffColors=['#5dff70','#ffd23f','#ff5d5d'];
+   ctx.font='16px '+FONT;ctx.fillStyle='#7a8599';ctx.textAlign='right';ctx.fillText('难度',CX-120,ay+16);
+   for(let i=0;i<3;i++){
+    const dx=CX-105+i*70,sel=this.aiDifficulty===i;
+    ctx.fillStyle=sel?diffColors[i]:'rgba(22,28,40,0.95)';rr(ctx,dx,ay,62,30,6);ctx.fill();
+    ctx.strokeStyle=sel?diffColors[i]:'#252d3d';rr(ctx,dx,ay,62,30,6);ctx.stroke();
+    ctx.fillStyle=sel?'#0b0d12':'#5a6478';ctx.font='bold 15px '+FONT;ctx.textAlign='center';
+    ctx.fillText(diffNames[i],dx+31,ay+15);
+   }
+   ctx.textAlign='left';ctx.font='16px '+FONT;ctx.fillStyle='#7a8599';ctx.fillText('数量',CX+88,ay+16);
+   ctx.fillStyle='#ffd23f';ctx.font='bold 28px '+FONT;ctx.textAlign='center';ctx.fillText(this.aiCount,CX+136,ay+14);
+   ctx.font='13px '+FONT;ctx.fillStyle='#3a4255';ctx.fillText('[Q] 难度   [Z−] [X+] 数量',CX,ay+50);
+   aiCtrlH=62;
+  }
   // 车型选择
-  const classY=gridBot+8;
+  const classY=gridBot+aiCtrlH+4;
   ctx.font='16px '+FONT;ctx.fillStyle='#7a8599';ctx.textAlign='center';
   ctx.fillText('选择车型 [C/V]',CX,classY+12);
   const classW=120,classGap=15,totalW=this.tankClassList.length*classW+(this.tankClassList.length-1)*classGap;
@@ -476,21 +493,7 @@ class Game{
    ctx.fillText('HP:'+cls.hp+' 速:'+cls.speed,cx+classW/2,classY+55);
   }
   const classH=78;
-  if(this.gameMode===0||this.gameMode===2){
-   const ay=gridBot,diffNames=['简单','普通','困难'],diffColors=['#5dff70','#ffd23f','#ff5d5d'];
-   ctx.font='16px '+FONT;ctx.fillStyle='#7a8599';ctx.textAlign='right';ctx.fillText('难度',CX-120,ay+16);
-   for(let i=0;i<3;i++){
-    const dx=CX-105+i*70,sel=this.aiDifficulty===i;
-    ctx.fillStyle=sel?diffColors[i]:'rgba(22,28,40,0.95)';rr(ctx,dx,ay,62,30,6);ctx.fill();
-    ctx.strokeStyle=sel?diffColors[i]:'#252d3d';rr(ctx,dx,ay,62,30,6);ctx.stroke();
-    ctx.fillStyle=sel?'#0b0d12':'#5a6478';ctx.font='bold 15px '+FONT;ctx.textAlign='center';
-    ctx.fillText(diffNames[i],dx+31,ay+15);
-   }
-   ctx.textAlign='left';ctx.font='16px '+FONT;ctx.fillStyle='#7a8599';ctx.fillText('数量',CX+88,ay+16);
-   ctx.fillStyle='#ffd23f';ctx.font='bold 28px '+FONT;ctx.textAlign='center';ctx.fillText(this.aiCount,CX+136,ay+14);
-   ctx.font='13px '+FONT;ctx.fillStyle='#3a4255';ctx.fillText('[Q] 难度   [Z−] [X+] 数量',CX,ay+50);
-  }
-  const aiH=(this.gameMode===0||this.gameMode===2)?58:0,ctrlY=gridBot+classH+aiH;
+  const ctrlY=gridBot+aiCtrlH+classH+8;
   const pw=320;
   if(this.gameMode===0)this.drawControlPanel(ctx,CX-pw/2,ctrlY,pw,'操作说明','#38bdf8',[['移动','W A S D'],['开火','F / 空格'],['暂停 P · 静音 M','']]);
   else if(this.gameMode===2){
