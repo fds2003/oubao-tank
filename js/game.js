@@ -158,6 +158,8 @@ class Game{
     if(Input.pressed('Digit3'))this.gameMode=2;
     if(Input.pressed('ArrowLeft'))this.mapIdx=(this.mapIdx+MAP_DEFS.length-1)%MAP_DEFS.length;
     if(Input.pressed('ArrowRight'))this.mapIdx=(this.mapIdx+1)%MAP_DEFS.length;
+    if(Input.pressed('ArrowUp')){const row=Math.floor(this.mapIdx/6);if(row>0)this.mapIdx-=6;}
+    if(Input.pressed('ArrowDown')){const row=Math.floor(this.mapIdx/6);if(row<1)this.mapIdx+=6;}
     if(Input.pressed('KeyC')){this.tankClassIndex=(this.tankClassIndex-1+this.tankClassList.length)%this.tankClassList.length;this.playerTankClass=this.tankClassList[this.tankClassIndex];}
     if(Input.pressed('KeyV')){this.tankClassIndex=(this.tankClassIndex+1)%this.tankClassList.length;this.playerTankClass=this.tankClassList[this.tankClassIndex];}
     if(this.gameMode===0||this.gameMode===2){
@@ -433,8 +435,7 @@ class Game{
    ctx.strokeStyle=sel?'#ffd23f':'#252d3d';ctx.lineWidth=1;rr(ctx,bx,126,btnW,btnH,8);ctx.stroke();ctx.shadowBlur=0;
    ctx.fillStyle=sel?'#0b0d12':'#7a8599';ctx.font='bold 16px '+FONT;
    ctx.fillText(['单人对战 [1]','双人对战 [2]','协作对战 [3]'][m],bx+btnW/2,126+btnH/2);
-  }
-  ctx.font='16px '+FONT;ctx.fillStyle='#5a6478';ctx.fillText('← → 选择地图',CX,188);
+  }   ctx.font='16px '+FONT;ctx.fillStyle='#5a6478';ctx.fillText('← → ↑ ↓ 选择地图',CX,188);
   const tw=140,th=76,gap=10,perRow=6,rows2=2;
   const gridW=perRow*tw+(perRow-1)*gap,gridX=CX-gridW/2,rowH=th+22,gridTop=206;
   for(let i=0;i<MAP_DEFS.length;i++){
