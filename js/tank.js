@@ -130,6 +130,9 @@ class Tank{
    }
   this.stats.shots++;
   this.game.parts.muzzleBlast(nx,ny,this.dirKey,this.color,heavy||scatter);
+  // 抛壳粒子：从炮管后方弹出金色弹壳
+  const shellX=this.x-d.x*12,shellY=this.y-d.y*12;
+  this.game.parts.spark(shellX,shellY,'#daa520',1,80);
   this.game.addShake(heavy?3.5:1.8);
   if(heavy)AudioSys.heavyShoot();else AudioSys.shoot();
  }
@@ -261,5 +264,16 @@ class Tank{
   const frac=Math.min(1,this.hp/(this.maxHp||HP_MAX));
   ctx.fillStyle=frac>0.5?this.color:(frac>0.25?'#ffd23f':'#ff5555');
   if(frac>0)ctx.fillRect(bx,by,bw*frac,bh);
+  // 战损视觉效果
+  if(this.game&&this.game.parts){
+   if(frac<=0.2&&frac>0&&chance(dt*3)){
+    // HP<20%：火焰+黑烟
+    this.game.parts.spark(this.x+rand(-6,6),this.y-10,'#ff6600',2,60);
+    this.game.parts.smoke(this.x+rand(-8,8),this.y+rand(-8,8),2);
+   }else if(frac<=0.5&&frac>0.2&&chance(dt*2)){
+    // HP<50%：灰烟
+    this.game.parts.smoke(this.x+rand(-6,6),this.y-10,1);
+   }
+  }
  }
 }
