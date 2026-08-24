@@ -1,16 +1,16 @@
 'use strict';
 const POWER_TYPES={
- shield:{color:'#4dd2ff',name:'护盾'},
- speed:{color:'#ffd23f',name:'疾速'},
- heal:{color:'#5dff70',name:'维修'},
- rapid:{color:'#ff8cf0',name:'连发'},
- freeze:{color:'#9ad8ff',name:'冰冻'},
- power:{color:'#ff5d5d',name:'重炮'},
- ghost:{color:'#c89dff',name:'穿墙'},
- mine:{color:'#ffaa33',name:'地雷'},
- mega:{color:'#ff5555',name:'巨型'},
- scatter:{color:'#ff66aa',name:'散射'},
- emp:{color:'#22eeff',name:'EMP'}
+ shield:{color:'#4dd2ff',name:'护盾',desc:'抵挡一次伤害'},
+ speed:{color:'#ffd23f',name:'疾速',desc:'移动速度+50%'},
+ heal:{color:'#5dff70',name:'维修',desc:'恢复40HP'},
+ rapid:{color:'#ff8cf0',name:'连发',desc:'冷却缩短+连射'},
+ freeze:{color:'#9ad8ff',name:'冰冻',desc:'冻结所有敌人'},
+ power:{color:'#ff5d5d',name:'重炮',desc:'伤害提升+穿墙'},
+ ghost:{color:'#c89dff',name:'穿墙',desc:'无视地形移动'},
+ mine:{color:'#ffaa33',name:'地雷',desc:'部署地雷50伤害'},
+ mega:{color:'#ff5555',name:'巨型',desc:'体型增大+50HP'},
+ scatter:{color:'#ff66aa',name:'散射',desc:'三发扇形子弹'},
+ emp:{color:'#22eeff',name:'EMP',desc:'摧毁护盾+减速'}
 };
 const POWER_POOL=['shield','speed','heal','rapid','freeze','power','speed','heal','ghost','mine','mega','scatter','emp'];
 function drawPowerIcon(ctx,type,s){

@@ -517,6 +517,7 @@ class Game{
    const ix=CX-(items.length-1)*pGap/2+i*pGap;
    ctx.save();ctx.translate(ix,iy);ctx.scale(1.4,1.4);drawPowerIcon(ctx,items[i],9);ctx.restore();
    ctx.font='13px '+FONT;ctx.fillStyle='#7a8599';ctx.fillText(POWER_TYPES[items[i]].name,ix,iy+24);
+   ctx.font='11px '+FONT;ctx.fillStyle='#5a6478';ctx.fillText(POWER_TYPES[items[i]].desc,ix,iy+38);
   }
   const startY=iy+54,pa=clamp(0.5+Math.sin(t*3)*0.5,0,1);
   ctx.globalAlpha=pa;ctx.font='bold 28px '+FONT;ctx.fillStyle='#ffd23f';
