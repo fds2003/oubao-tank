@@ -177,6 +177,8 @@ js/
 ├── tank-classes.js       车型数据定义（轻/中/重/突击炮）
 ├── tutorial.js           新手引导系统（5步教程）
 ├── dynamic-difficulty.js 动态难度+新手保护机制
+├── achievements.js       成就系统（10个成就+localStorage持久化）
+├── leaderboard.js        家庭排行榜（多玩家+按胜场排序）
 ├── game.js               游戏主循环、spawnAI、车型选择UI、所有UI绘制
 └── main.js               启动入口
 ```
@@ -186,7 +188,8 @@ js/
 ```
 utils.js → audio.js → input.js → maps.js → world.js → particles.js
 → powerup.js → bullet.js → ai.js → tank.js → tank-classes.js
-→ tutorial.js → dynamic-difficulty.js → game.js → main.js
+→ tutorial.js → dynamic-difficulty.js → achievements.js → leaderboard.js
+→ game.js → main.js
 ```
 
 ### 画布参数
@@ -249,10 +252,12 @@ menu → countdown → play → round → (match | countdown)
 | tank.js | 247 | 坦克逻辑（移动/开火/受伤/绘制+车型属性） |
 | tank-classes.js | 108 | 车型数据定义（轻/中/重/突击炮） |
 | tutorial.js | 130 | 新手引导系统（5步教程） |
-| dynamic-difficulty.js | 90 | 动态难度+新手保护机制 |
-| game.js | 532 | 游戏主循环+spawnAI+车型选择UI+所有UI绘制 |
+| dynamic-difficulty.js | 112 | 动态难度+新手保护机制 |
+| achievements.js | 171 | 成就系统（10个成就+统计追踪） |
+| leaderboard.js | 123 | 家庭排行榜（多玩家+排名） |
+| game.js | 641 | 游戏主循环+spawnAI+车型选择UI+成就/排行榜+所有UI绘制 |
 | main.js | 14 | 启动入口 |
-| **合计** | **~2137** | |
+| **合计** | **~2625** | |
 
 ---
 
@@ -270,7 +275,9 @@ menu → countdown → play → round → (match | countdown)
 | test-newplayer-protection | 12 | ✓ |
 | test-damage-flash | 8 | ✓ |
 | test-tank-classes | 66 | ✓ |
-| **合计** | **210** | **✓ 全部通过** |
+| test-achievements | 34 | ✓ |
+| test-leaderboard | 25 | ✓ |
+| **合计** | **269** | **✓ 全部通过** |
 
 ---
 
@@ -278,6 +285,7 @@ menu → countdown → play → round → (match | countdown)
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| v1.4 | 2026-08-24 | 成就系统（10个成就）+ 家庭排行榜 + 结算统计 |
 | v1.3 | 2026-08-24 | 车型系统：轻/中/重/突击炮分化 + 穿墙能力 + AI智能选车 |
 | v1.2 | 2026-08-24 | 新手体验：教程 + 动态难度 + 新手保护 + 受伤闪红 |
 | v1.1 | 2026-08-24 | 代码重构：CONFIG配置对象 + spawnAI提取 + 魔数替换 |
