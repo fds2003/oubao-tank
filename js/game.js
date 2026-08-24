@@ -32,6 +32,11 @@ class Game{
  this.playerTankClass='medium';
  this.tankClassList=getTankClassList();
  this.tankClassIndex=1;
+ this.achievements=new AchievementSystem();
+ this.leaderboard=new Leaderboard();
+ this.achievementNotify=[]; // [{text,icon,timer}]
+ this.currentPlayerId=null;
+ this.showLeaderboard=false;
  }
  start(){requestAnimationFrame(ts=>this.loop(ts));}
  loop(ts){
@@ -44,6 +49,35 @@ class Game{
  addShake(v){this.shake=Math.min(10,Math.max(this.shake,v));}
  triggerDamageFlash(){this.damageFlash=0.3;}
  autoPause(){if(this.state==='play')this.state='pause';}
+ _recordMatchResult(){
+  const won=this.matchWinner===0;
+  const stats=this.matchStats[0]||{shots:0,hits:0,dmg:0};
+  const killed=won?this.aiCount:0;
+  const survived=won;
+  // 统计拾取的道具
+  const powerups=[];
+  for(const t of this.tanks){
+   if(t.isPlayer&&t.collectedPowerups){
+    for(const p of t.collectedPowerups)if(powerups.indexOf(p)===-1)powerups.push(p);
+   }
+  }
+  const result={won,shots:stats.shots,hits:stats.hits,killed,survived,powerups,
+   coop:this.gameMode===2,lastHp:this.tanks[0]?this.tanks[0].hp:0};
+  const newAchievements=this.achievements.recordGame(result);
+  // 显示成就通知
+  for(const id of newAchievements){
+   const a=this.achievements.getAchievement(id);
+   if(a)this.achievementNotify.push({text:a.name+' '+a.desc,icon:a.icon,timer:3});
+  }
+  // 记录排行榜
+  if(!this.currentPlayerId){
+   const p=this.leaderboard.addPlayer('玩家1','🎮');
+   this.currentPlayerId=p.id;
+  }
+  this.leaderboard.recordResult(this.currentPlayerId,{
+   won,kills:killed,accuracy:stats.shots>0?stats.hits/stats.shots:0
+  });
+ }
   startMatch(i){
    this.mapIdx=i;this.scores=[0,0];this.roundNum=1;
    this.matchWinner=-1;
@@ -144,6 +178,11 @@ class Game{
   this.menuT+=dt;this.parts.update(dt);
   this.shake=Math.max(0,this.shake-dt*16);
   if(this.damageFlash>0&&dt>0)this.damageFlash=Math.max(0,this.damageFlash-dt);
+  // 成就通知计时
+  for(let i=this.achievementNotify.length-1;i>=0;i--){
+   this.achievementNotify[i].timer-=dt;
+   if(this.achievementNotify[i].timer<=0)this.achievementNotify.splice(i,1);
+  }
   this.fade=lerp(this.fade,this.fadeTarget,dt*6);
   if(Input.pressed('KeyM'))AudioSys.toggleMute();
   if(this.tutorial.state==='active'){
@@ -167,7 +206,8 @@ class Game{
      if(Input.pressed('KeyZ'))this.aiCount=Math.max(1,this.aiCount-1);
      if(Input.pressed('KeyX'))this.aiCount=Math.min(10,this.aiCount+1);
     }
-    if(Input.pressed('Enter','Space'))this.startMatch(this.mapIdx);
+    if(Input.pressed('KeyL'))this.showLeaderboard=!this.showLeaderboard;
+    if(Input.pressed('Enter','Space')&&!this.showLeaderboard)this.startMatch(this.mapIdx);
     break;
    case'countdown':{
     this.cd-=dt;const n=Math.ceil(this.cd);
@@ -179,7 +219,7 @@ class Game{
     this.bannerT-=dt;
     for(const b of this.bullets)b.update(dt,this);this.bullets=this.bullets.filter(b=>!b.dead);
     if(this.bannerT<=0){
-     if(this.roundWinner>=0&&this.scores[this.roundWinner]>=WIN_ROUNDS){this.matchWinner=this.roundWinner;this.state='match';AudioSys.win();}
+     if(this.roundWinner>=0&&this.scores[this.roundWinner]>=WIN_ROUNDS){this.matchWinner=this.roundWinner;this.state='match';AudioSys.win();this._recordMatchResult();}
      else{this.roundNum++;this.startRound();}
     }break;
    case'match':
@@ -206,6 +246,18 @@ class Game{
   if(this.state==='pause')this.drawPause(ctx);
   if(this.fade<0.99){ctx.fillStyle='rgba(11,13,18,'+(1-this.fade)+')';ctx.fillRect(0,0,VIEW_W,VIEW_H);}
   if(this.damageFlash>0){ctx.save();ctx.globalAlpha=this.damageFlash/0.3*0.4;ctx.fillStyle='rgba(255,50,50,1)';ctx.fillRect(0,0,VIEW_W,VIEW_H);ctx.restore();}
+  // 成就通知
+  for(let i=this.achievementNotify.length-1;i>=0;i--){
+   const n=this.achievementNotify[i];
+   const alpha=Math.min(1,n.timer);
+   const ny=60+i*50;
+   ctx.save();ctx.globalAlpha=alpha;
+   ctx.fillStyle='rgba(12,16,24,0.92)';rr(ctx,CX-160,ny-16,320,40,8);ctx.fill();
+   ctx.strokeStyle='#ffd23f';ctx.lineWidth=1.5;rr(ctx,CX-160,ny-16,320,40,8);ctx.stroke();
+   ctx.font='bold 16px '+FONT;ctx.fillStyle='#ffd23f';ctx.textAlign='center';
+   ctx.fillText(n.icon+' '+n.text,CX,ny+8);
+   ctx.restore();
+  }
  }
  drawScene(ctx){
   const sx=this.shake>0?rand(-this.shake,this.shake):0;
@@ -405,8 +457,16 @@ class Game{
    ctx.fillText('命中率 '+acc,cols[i],py+124);ctx.fillText('输出 '+st.dmg,cols[i],py+152);
    if(i===0){ctx.strokeStyle='#1e2636';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(VIEW_W/2,py+12);ctx.lineTo(VIEW_W/2,py+ph-12);ctx.stroke();}
   }
+  // 成就统计
+  const achY=py+ph+70;
+  const achStats=this.achievements.stats;
+  ctx.font='14px '+FONT;ctx.fillStyle='#5a6478';ctx.textAlign='center';
+  ctx.fillText('总局数 '+achStats.totalGames+'   胜场 '+achStats.totalWins+'   最高连胜 '+achStats.bestWinStreak+'   总击杀 '+achStats.totalKills,VIEW_W/2,achY);
+  const unlockedCount=this.achievements.getUnlocked().length;
+  const totalCount=this.achievements.achievements.length;
+  ctx.fillText('成就 '+unlockedCount+'/'+totalCount+'   最高命中率 '+(achStats.bestAccuracy*100).toFixed(0)+'%',VIEW_W/2,achY+20);
   ctx.font='bold 20px '+FONT;ctx.fillStyle='#ffd23f';
-  ctx.fillText('R 再来一局        Esc 返回菜单',VIEW_W/2,py+ph+42);
+  ctx.fillText('R 再来一局        Esc 返回菜单',VIEW_W/2,py+ph+70);
  }
  drawPause(ctx){
   ctx.fillStyle='rgba(4,6,10,0.55)';ctx.fillRect(0,0,VIEW_W,VIEW_H);
@@ -522,7 +582,9 @@ class Game{
   const startY=iy+54,pa=clamp(0.5+Math.sin(t*3)*0.5,0,1);
   ctx.globalAlpha=pa;ctx.font='bold 28px '+FONT;ctx.fillStyle='#ffd23f';
   ctx.shadowColor='#ff8c42';ctx.shadowBlur=16;ctx.fillText('按 回车 开始战斗',CX,startY);ctx.shadowBlur=0;
-  ctx.globalAlpha=1;ctx.font='14px '+FONT;ctx.fillStyle='#3a4255';ctx.fillText('M 静音',CX,startY+26);
+  ctx.globalAlpha=1;ctx.font='14px '+FONT;ctx.fillStyle='#3a4255';ctx.fillText('M 静音  L 排行榜',CX,startY+26);
+  // 排行榜覆盖层
+  if(this.showLeaderboard)this.drawLeaderboard(ctx);
  }
  drawControlPanel(ctx,x,y,w,title,color,rows){
   const h=28+rows.length*26+10;
@@ -537,5 +599,43 @@ class Game{
   }
   ctx.textAlign='center';ctx.textBaseline='middle';
   return h;
+ }
+ drawLeaderboard(ctx){
+  const bw=500,bh=400,bx=CX-bw/2,by=VIEW_H/2-bh/2;
+  ctx.fillStyle='rgba(4,6,10,0.92)';rr(ctx,bx,by,bw,bh,14);ctx.fill();
+  ctx.strokeStyle='#ffd23f';ctx.lineWidth=2;rr(ctx,bx,by,bw,bh,14);ctx.stroke();
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.font='bold 28px '+FONT;ctx.fillStyle='#ffd23f';
+  ctx.fillText('🏆 家庭排行榜',CX,by+40);
+  const ranked=this.leaderboard.getRanked();
+  if(ranked.length===0){
+   ctx.font='18px '+FONT;ctx.fillStyle='#5a6478';
+   ctx.fillText('还没有玩家记录',CX,by+160);
+   ctx.fillText('完成一局游戏即可上榜！',CX,by+190);
+  }else{
+   const headerY=by+80;
+   ctx.font='bold 14px '+FONT;ctx.fillStyle='#5a6478';
+   ctx.textAlign='left';ctx.fillText('排名',bx+30,headerY);
+   ctx.fillText('玩家',bx+70,headerY);
+   ctx.textAlign='right';ctx.fillText('胜场',bx+bw-180,headerY);
+   ctx.fillText('局数',bx+bw-120,headerY);
+   ctx.fillText('击杀',bx+bw-60,headerY);
+   ctx.textAlign='center';
+   ctx.font='16px '+FONT;
+   for(let i=0;i<Math.min(ranked.length,8);i++){
+    const p=ranked[i],ry=headerY+30+i*32;
+    ctx.fillStyle=i<3?'#ffd23f':'#7a8599';
+    ctx.textAlign='left';
+    ctx.fillText((i<3?['🥇','🥈','🥉'][i]:' '+(i+1)),bx+30,ry);
+    ctx.fillText(p.avatar+' '+p.name,bx+70,ry);
+    ctx.textAlign='right';
+    ctx.fillText(p.wins+'',bx+bw-180,ry);
+    ctx.fillText(p.games+'',bx+bw-120,ry);
+    ctx.fillText(p.kills+'',bx+bw-60,ry);
+    ctx.textAlign='center';
+   }
+  }
+  ctx.font='14px '+FONT;ctx.fillStyle='#5a6478';
+  ctx.fillText('L 关闭',CX,by+bh-20);
  }
 }
