@@ -166,7 +166,7 @@
 
 ```
 js/
-├── utils.js              常量、工具函数、CONFIG配置（20个可调参数）
+├── utils.js              常量、工具函数、CONFIG配置（28个可调参数）
 ├── audio.js              音效系统（Web Audio API）
 ├── input.js              键盘输入管理
 ├── maps.js               12张地图定义（水平镜像对称）
@@ -219,7 +219,7 @@ const CONFIG = {
   AI_DODGE_RANGE: 80,          // AI躲避子弹范围
   AI_SEEK_RANGE: 200,          // AI搜寻道具范围
   WIN_ROUNDS: 5,               // 胜利局数
-  // ... 共20个参数
+  // ... 共28个参数（含履带压痕/战损冒烟/护送AI/运输车碰撞等）
 };
 ```
 
@@ -246,52 +246,58 @@ menu → countdown → play → round → (match | countdown)
 
 | 文件 | 行数 | 职责 |
 |------|------|------|
-| utils.js | 55 | 常量、工具函数、CONFIG配置 |
+| utils.js | 67 | 常量（含核心战斗常量）、工具函数、CONFIG配置 |
 | audio.js | 66 | 音效（Web Audio API） |
-| input.js | 18 | 键盘输入管理 |
+| input.js | 28 | 键盘输入管理 |
 | maps.js | 189 | 12张地图定义+buildMap |
 | world.js | 91 | 地形渲染+草地预计算 |
 | particles.js | 150 | 粒子特效（swap-and-pop） |
-| powerup.js | 257 | 道具系统（11种+地雷+applyPower） |
-| bullet.js | 95 | 子弹逻辑（角度支持+突击炮穿墙） |
-| ai.js | 95 | AI控制器（LOS/路径/躲避/道具+新手保护） |
-| tank.js | 247 | 坦克逻辑（移动/开火/受伤/绘制+车型属性） |
+| powerup.js | 254 | 道具系统（11种+地雷+applyPower） |
+| bullet.js | 140 | 子弹逻辑（角度/散射/穿墙/基地伤害） |
+| ai.js | 128 | AI控制器（LOS/路径/躲避/道具/伏击运输车） |
+| tank.js | 296 | 坦克逻辑（移动/开火/受伤/绘制/组合效果+车型属性） |
 | tank-classes.js | 108 | 车型数据定义（轻/中/重/突击炮） |
-| tutorial.js | 130 | 新手引导系统（5步教程） |
+| tutorial.js | 193 | 新手引导系统（5步教程） |
 | dynamic-difficulty.js | 112 | 动态难度+新手保护机制 |
-| achievements.js | 171 | 成就系统（10个成就+统计追踪） |
-| leaderboard.js | 123 | 家庭排行榜（多玩家+排名） |
+| achievements.js | 170 | 成就系统（10个成就+统计追踪） |
+| leaderboard.js | 122 | 家庭排行榜（多玩家+排名） |
 | combos.js | 108 | 道具组合系统（4种组合效果） |
 | bgm.js | 163 | 背景音乐（Web Audio API程序化生成） |
-| physics.js | 126 | 物理系统（跳弹/弱点/履带） |
-| modes.js | 131 | 特殊模式（基地保卫战/护送装甲车） |
-| game.js | 709 | 游戏主循环+spawnAI+车型选择UI+成就/排行榜+组合/BGM+物理+模式+所有UI绘制 |
-| main.js | 14 | 启动入口 |
-| **合计** | **~3467** | |
+| physics.js | 131 | 物理系统（跳弹/弱点/履带） |
+| modes.js | 232 | 特殊模式（双基地对抗/护送装甲车+渲染） |
+| game.js | 769 | 游戏主循环+防堆叠spawnAI+车型选择UI+所有UI绘制 |
+| main.js | 17 | 启动入口（含调试钩子） |
+| **合计** | **~3534** | |
 
 ---
 
 ## 测试覆盖
 
-| 测试套件 | 用例数 | 状态 |
-|----------|--------|------|
-| test-ai | 11 | ✓ |
-| test-coop | 11 | ✓ |
-| test-effects | 14 | ✓ |
-| test-draw2 | 7 | ✓ |
-| test-newpowerups | 10 | ✓ |
-| test-tutorial | 33 | ✓ |
-| test-dynamic-difficulty | 38 | ✓ |
-| test-newplayer-protection | 12 | ✓ |
-| test-damage-flash | 8 | ✓ |
-| test-tank-classes | 66 | ✓ |
-| test-achievements | 34 | ✓ |
-| test-leaderboard | 25 | ✓ |
-| test-combos | 23 | ✓ |
-| test-bgm | 21 | ✓ |
-| test-physics | 39 | ✓ |
-| test-modes | 32 | ✓ |
-| **合计** | **384** | **✓ 全部通过** |
+| 测试套件 | 用例数 | 覆盖范围 |
+|----------|--------|----------|
+| test-achievements | 34 | 成就系统（解锁/统计/持久化） |
+| test-bgm | 21 | 背景音乐（曲目/播放状态） |
+| test-combos | 23 | 道具组合（检测/增删/效果） |
+| test-damage-flash | 8 | 受伤闪红反馈 |
+| test-dynamic-difficulty | 38 | 动态难度（连胜连败调整） |
+| test-leaderboard | 25 | 排行榜（记录/排序/持久化） |
+| test-modes | 33 | 特殊模式（双基地/运输车/胜负判定） |
+| test-newplayer-protection | 12 | 新手保护期（AI冷却倍率） |
+| test-physics | 44 | 物理系统（跳弹/暴击/断履带） |
+| test-tank-classes | 66 | 车型系统（属性/克制/平衡） |
+| test-tdd-bugfixes | 17 | 回归保护（AI分布/教程隔离/双基地/护送AI） |
+| test-tutorial | 33 | 新手引导（步骤/跳过/持久化） |
+| integration-test | 54 | 全循环集成（真实Game实例+边界条件+模式流程） |
+| **合计** | **408** | **✓ 全部通过** |
+
+运行方式：
+
+```bash
+# 单个套件
+node tests/test-physics.js
+# 全量（逐个执行）
+for f in tests/test-*.js tests/integration-test.js; do node "$f"; done
+```
 
 ---
 
@@ -299,6 +305,7 @@ menu → countdown → play → round → (match | countdown)
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| v2.4 | 2026-08-25 | 模式补全：双基地对抗（基地保卫战）+ AI伏击运输车（护送）+ AI防堆叠生成 |
 | v2.3 | 2026-08-24 | 视听沉浸感：战损冒烟/履带压痕/抛壳粒子 |
 | v2.2 | 2026-08-24 | 新游戏模式：基地保卫战+护送装甲车 |
 | v2.1 | 2026-08-24 | 物理系统：跳弹/背部暴击/断履带/草丛隐蔽/水面减速 |
@@ -311,7 +318,7 @@ menu → countdown → play → round → (match | countdown)
 
 ### 修复记录
 
-项目经过 **6 轮修复**，共计 **21+ 项修复**：
+项目经过 **8 轮修复**，共计 **35+ 项修复**：
 
 | 轮次 | 问题数 | 说明 |
 |------|--------|------|
@@ -321,3 +328,5 @@ menu → countdown → play → round → (match | countdown)
 | 第四轮 | 7 | 代码审查（地雷友伤、EMP误伤队友等） |
 | 第五轮 | 2 | 地图不可达问题 |
 | 第六轮 | 4 | 代码重构（CONFIG+spawnAI+魔数替换） |
+| 第七轮 | 10 | 全面测试（内存泄漏/组合dead code/特殊模式不可用/isPlayer阵营，详见 BUG_REPORT.md） |
+| 第八轮 | 6 | TDD第二轮（AI防堆叠/护送AI伏击/双基地对抗/基地地形/flaky测试，详见 BUG_REPORT.md） |
