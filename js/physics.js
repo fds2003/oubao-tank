@@ -107,15 +107,20 @@ var Physics = (function(){
    let isBackHit = false;
    let isTrackStun = false;
 
-   // 优先级：背部暴击 > 跳弹 > 侧面履带 > 普通
+   // 优先级：背部暴击 > 侧面履带(未断则按跳弹判定) > 跳弹 > 普通
    if (this.isBackHit(tank, hitPos)) {
     damage = this.getBackHitDamage(baseDamage);
     isBackHit = true;
+   } else if (this.isTrackHit(tank, hitPos)) {
+    // 侧面命中：先判定断履带；未断履带且入射角>65° 仍可跳弹
+    isTrackStun = this.checkTrackStun();
+    if (!isTrackStun && this.shouldRicochet(impactAngle)) {
+     damage = this.getRicochetDamage(baseDamage);
+     isRicochet = true;
+    }
    } else if (this.shouldRicochet(impactAngle)) {
     damage = this.getRicochetDamage(baseDamage);
     isRicochet = true;
-   } else if (this.isTrackHit(tank, hitPos)) {
-    isTrackStun = this.checkTrackStun();
    }
 
    return { damage, isRicochet, isBackHit, isTrackStun };

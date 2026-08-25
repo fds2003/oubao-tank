@@ -10,13 +10,14 @@ const T = {
 
 const fs = require('fs');
 const vm = require('vm');
+const ctx = vm.createContext({ Math: Math, CELL: 55, COLS: 22, ROWS: 13, FONT: "'Segoe UI',sans-serif" });
 const code = fs.readFileSync('js/modes.js', 'utf8');
-const ctx = vm.createContext({ Math: Math });
 vm.runInContext(code, ctx);
 const { BaseDefense, ConvoyEscort } = ctx;
 
 console.log('\n[Test] BaseDefense - 初始化');
-const bd = new BaseDefense();
+const mockGame = { gameMode: 3 };
+const bd = new BaseDefense(mockGame, 0);
 T.eq(bd.hq.hp, 200, '基地血量200');
 T.eq(bd.hq.maxHp, 200, '基地最大血量200');
 T.ok(bd.hq.alive, '基地初始存活');
@@ -33,20 +34,21 @@ T.eq(bd.hq.hp, 0, '血量=0');
 T.ok(!bd.hq.alive, '基地被摧毁');
 
 console.log('\n[Test] BaseDefense - 胜利条件检查');
-const bd2 = new BaseDefense();
-T.eq(bd2.checkWin(true, false), 'player_win', 'AI全灭=玩家胜');
-T.eq(bd2.checkWin(false, true), 'hq_destroyed', '基地被毁=玩家败');
-T.eq(bd2.checkWin(false, false), null, '未结束=null');
+const bd2 = new BaseDefense(mockGame, 0);
+T.eq(bd2.checkWin(true, false, false), 'player_win', 'AI全灭=玩家胜');
+T.eq(bd2.checkWin(false, true, false), 'hq_destroyed', '玩家基地被毁=玩家败');
+T.eq(bd2.checkWin(false, false, false), null, '未结束=null');
+T.eq(bd2.checkWin(false, false, true), 'player_win', '敌方基地被毁=玩家胜');
 
 console.log('\n[Test] BaseDefense - 获取基地位置');
-const bd3 = new BaseDefense();
-const hqPos = bd3.getHQPosition(0);
+const bd3 = new BaseDefense(mockGame, 10);
+const hqPos = bd3.getHQPosition(10);
 T.ok(hqPos, '有基地位置');
 T.ok(hqPos.c >= 0, '列>=0');
 T.ok(hqPos.r >= 0, '行>=0');
 
 console.log('\n[Test] BaseDefense - 基地状态');
-const bd4 = new BaseDefense();
+const bd4 = new BaseDefense(mockGame, 0);
 T.eq(bd4.getStatus(), '正常', '初始状态正常');
 bd4.takeDamage(100);
 T.eq(bd4.getStatus(), '受损', '受伤后状态受损');
@@ -54,7 +56,8 @@ bd4.takeDamage(100);
 T.eq(bd4.getStatus(), '被摧毁', '摧毁后状态被摧毁');
 
 console.log('\n[Test] ConvoyEscort - 初始化');
-const ce = new ConvoyEscort();
+const mockGame2 = { gameMode: 4 };
+const ce = new ConvoyEscort(mockGame2);
 T.ok(ce.transport, '有运输车');
 T.eq(ce.transport.hp, 100, '运输车血量100');
 T.ok(ce.transport.alive, '运输车存活');
@@ -80,14 +83,14 @@ ce.updateTransport(1);
 T.ok(ce.transport.waypointIdx >= 0, '路径点索引更新');
 
 console.log('\n[Test] ConvoyEscort - 胜利条件检查');
-const ce2 = new ConvoyEscort();
+const ce2 = new ConvoyEscort(mockGame2);
 T.eq(ce2.checkWin(true, false), 'player_win', 'AI全灭=玩家胜');
 ce2.transportTakeDamage(100);
 T.eq(ce2.checkWin(false, false), 'transport_destroyed', '运输车被毁=玩家败');
 T.ok(ce2.checkWin(false, true) === null || ce2.checkWin(false, true) === 'transport_destroyed', '运输车状态检查');
 
 console.log('\n[Test] ConvoyEscort - 运输车到达终点');
-const ce3 = new ConvoyEscort();
+const ce3 = new ConvoyEscort(mockGame2);
 ce3.transport.waypointIdx = ce3.waypoints.length;
 T.eq(ce3.checkWin(false, false), 'escort_complete', '到达终点=护送成功');
 

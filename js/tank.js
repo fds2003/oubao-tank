@@ -1,11 +1,5 @@
 'use strict';
-const TANK_SIZE=42,TANK_HALF=21;
-const TANK_SPEED=180,SPEED_BOOSTED=270;
-const BULLET_SPEED=430;
-const NORMAL_DMG=35,HEAVY_DMG=55;
-const COOLDOWN=0.4,RAPID_CD=0.18;
-const MAX_BULLETS=2,RAPID_BULLETS=4;
-const HP_MAX=100;
+// 核心战斗常量已集中至 utils.js（TANK_SIZE/BULLET_SPEED/HP_MAX 等）
 
 function drawTankBody(ctx,x,y,dirKey,color,tread,recoil){
  ctx.save();
@@ -68,7 +62,10 @@ class Tank{
   this.x=cfg.c*CELL+CELL/2;this.y=cfg.r*CELL+CELL/2;
   this.dirKey=cfg.face;
   this.color=cfg.color;this.name=cfg.name;this.keys=cfg.keys;
-  this.isPlayer=(id===0);
+  // 阵营：0=玩家阵营(含协作队友), 1=敌方。双人对战(id=1)互为敌方
+  this.team=(id===0||(id===1&&game.gameMode===2))?0:1;
+  this.isPlayer=this.team===0;
+  this.collectedPowerups=[];
   // 应用车型属性
   const cls=getTankClass(tankClass||'medium');
   this.tankClass=tankClass||'medium';
@@ -85,6 +82,7 @@ class Tank{
   this._lastBuffKeys=new Set();
  }
  get dir(){return DIRS[this.dirKey];}
+ get face(){return this.dirKey;}
    fits(x,y){
     const l=x-TANK_HALF,t=y-TANK_HALF,r=x+TANK_HALF,b=y+TANK_HALF;
     if(l<0||t<0||r>=FIELD_W||b>=FIELD_H)return false;
@@ -170,6 +168,7 @@ class Tank{
   if(this.id===0)game.triggerDamageFlash();
   if(this.hp<=0){
    this.hp=0;this.alive=false;
+   if(attacker&&attacker.alive&&attacker.stats)attacker.stats.kills=(attacker.stats.kills||0)+1;
    game.parts.explosion(this.x,this.y,this.color);
    AudioSys.boom();
    game.addShake(7);
@@ -216,6 +215,11 @@ class Tank{
      const baseSpd=this.baseSpeed||TANK_SPEED;
      let spd=this.buff.speed>0?SPEED_BOOSTED:baseSpd;
      if(this.buff.slow>0)spd*=0.4;
+     // 闪电战组合(speed+rapid)：额外速度加成
+     if(this.game&&this.game.comboSystem){
+      const lEff=this.game.comboSystem.getEffect('lightning');
+      if(lEff&&lEff.speedMultiplier)spd*=lEff.speedMultiplier;
+     }
      moved=this.tryMove(d.x*spd*dt,d.y*spd*dt);
     }
     if(moved)this.tread+=dt*(this.buff.speed>0?SPEED_BOOSTED:(this.baseSpeed||TANK_SPEED));
@@ -279,11 +283,11 @@ class Tank{
   if(frac>0)ctx.fillRect(bx,by,bw*frac,bh);
   // 战损视觉效果
   if(this.game&&this.game.parts){
-   if(frac<=0.2&&frac>0&&chance(dt*3)){
+   if(frac<=CONFIG.SMOKE_HEAVY_BELOW&&frac>0&&chance(dt*3)){
     // HP<20%：火焰+黑烟
     this.game.parts.spark(this.x+rand(-6,6),this.y-10,'#ff6600',2,60);
     this.game.parts.smoke(this.x+rand(-8,8),this.y+rand(-8,8),2);
-   }else if(frac<=0.5&&frac>0.2&&chance(dt*2)){
+   }else if(frac<=CONFIG.SMOKE_LIGHT_BELOW&&frac>CONFIG.SMOKE_HEAVY_BELOW&&chance(dt*2)){
     // HP<50%：灰烟
     this.game.parts.smoke(this.x+rand(-6,6),this.y-10,1);
    }

@@ -87,9 +87,35 @@ const backHit = ph.calculateDamage({x:0,y:0,face:'right'}, {x:-10,y:0}, 40);
 T.approx(backHit.damage, 60, '背面暴击=60');
 T.eq(backHit.isBackHit, true, '是背部命中');
 
-// 大角度跳弹
-const ricochet = ph.calculateDamage({x:0,y:0,face:'right'}, {x:0,y:10}, 40);
-T.approx(ricochet.damage, 12, '大角度跳弹=12');
-T.eq(ricochet.isRicochet, true, '是跳弹');
+// 大角度跳弹（侧面命中：断履带骰子未触发时跳弹）
+// 语义（v2.1+）：侧面命中先掷 30% 断履带；未断履带且入射角>65° 则跳弹
+const origRandom = Math.random;
+try {
+ Math.random = () => 0.99; // >0.3 → 不断履带 → 必然跳弹
+ const ricochet = ph.calculateDamage({x:0,y:0,face:'right'}, {x:0,y:10}, 40);
+ T.approx(ricochet.damage, 12, '大角度跳弹=12（未断履带时）');
+ T.eq(ricochet.isRicochet, true, '是跳弹（未断履带时）');
+ T.eq(ricochet.isTrackStun, false, '未断履带');
+
+ // 断履带触发：侧面命中全额伤害 + isTrackStun
+ Math.random = () => 0.1; // <0.3 → 断履带
+ const track = ph.calculateDamage({x:0,y:0,face:'right'}, {x:0,y:10}, 40);
+ T.approx(track.damage, 40, '断履带时全额伤害=40');
+ T.eq(track.isTrackStun, true, '断履带标记');
+ T.eq(track.isRicochet, false, '断履带时不跳弹');
+} finally {
+ Math.random = origRandom;
+}
+
+// 统计验证：90° 侧面命中跳弹率 ≈ 70%
+{
+ let ricochetCount = 0;
+ for (let i = 0; i < 2000; i++) {
+  const r = ph.calculateDamage({x:0,y:0,face:'right'}, {x:0,y:10}, 40);
+  if (r.isRicochet) ricochetCount++;
+ }
+ T.ok(ricochetCount > 1200 && ricochetCount < 1600,
+  '90°侧面跳弹率约70% (' + ricochetCount + '/2000)');
+}
 
 T.summary();

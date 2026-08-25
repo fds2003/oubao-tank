@@ -28,7 +28,7 @@ class Game{
  this.fade=0;this.fadeTarget=1;
  this.tutorial=new Tutorial();
  if(Tutorial.shouldShow())this.tutorial.start();
- this.dynamicDifficulty=new DynamicDifficulty();
+ this.dynamicDifficulty=new DynamicDifficulty(this.aiDifficulty);
  this.playerTankClass='medium';
  this.tankClassList=getTankClassList();
  this.tankClassIndex=1;
@@ -47,7 +47,7 @@ class Game{
  start(){requestAnimationFrame(ts=>this.loop(ts));}
  loop(ts){
   const dt=Math.min(0.033,(ts-this.lastTs)/1000||0.016);
-  this.lastTs=ts;this.time+=dt;
+  this.lastTs=ts;this.time+=dt;this.dt=dt;
   this.update(dt);this.draw();
   Input.endFrame();
   requestAnimationFrame(t=>this.loop(t));
@@ -58,7 +58,8 @@ class Game{
  _recordMatchResult(){
   const won=this.matchWinner===0;
   const stats=this.matchStats[0]||{shots:0,hits:0,dmg:0};
-  const killed=won?this.aiCount:0;
+  // 实际击杀数（含协作模式玩家2）
+  const killed=((this.matchStats[0]&&this.matchStats[0].kills)||0)+((this.gameMode===2&&this.matchStats[1]&&this.matchStats[1].kills)||0);
   const survived=won;
   // 统计拾取的道具
   const powerups=[];
@@ -116,26 +117,53 @@ class Game{
    const n=this.gameMode===1?2:(this.gameMode===2?2+this.aiCount:(isSpecialMode?1+this.aiCount:1+this.aiCount));
    this.matchStats=[];for(let j=0;j<n;j++)this.matchStats.push({shots:0,hits:0,dmg:0});
    this.fade=0;this.fadeTarget=1;
-   // 初始化特殊模式
-   if(this.gameMode===3)this.baseDefense=new BaseDefense();
-   if(this.gameMode===4)this.convoyEscort=new ConvoyEscort();
+   // 初始化特殊模式（BaseDefense 的创建移到 startRound 内，避免 s1 未定义）
+   if(this.gameMode===4){this.convoyEscort=new ConvoyEscort(this);this.convoyEscort.reset();}
    this.startRound();
  }
  spawnAI(id,spawnPt,color,name,playerClass){
-  const aiClass=selectAITankClass(this.dynamicDifficulty.getEffectiveDifficulty(),playerClass);
+  // 菜单选择难度优先（AI 实际难度与玩家选择一致）
+  const aiDiff=DIFF_LIST[this.aiDifficulty]||this.dynamicDifficulty.getEffectiveDifficulty();
+  const aiClass=selectAITankClass(aiDiff,playerClass);
+  const spawnAt=(tc,tr)=>{
+   const t=new Tank(id,{c:tc,r:tr,face:'left',color,name,keys:{up:0,down:0,left:0,right:0,fire:[]}},this,aiClass);
+   t.ai=new AI(t,this,aiDiff);this.tanks.push(t);
+  };
+  // 1) 优先使用预设安全偏移
   for(const off of SAFE_OFFSETS){
    const tc=spawnPt.c+off.c,tr=spawnPt.r+off.r;
-   if(tc>=1&&tc<COLS-1&&tr>=1&&tr<ROWS-1&&!this.world.solidTank(tc,tr)){
-    const t=new Tank(id,{c:tc,r:tr,face:'left',color,name,keys:{up:0,down:0,left:0,right:0,fire:[]}},this,aiClass);
-    t.ai=new AI(t,this,this.dynamicDifficulty.getEffectiveDifficulty());this.tanks.push(t);return;
+   if(this._spawnable(tc,tr)){spawnAt(tc,tr);return;}
+  }
+  // 2) 螺旋扩大搜索（半径3~10），避开墙/水与其他坦克，防止堆叠
+  for(let rad=3;rad<=10;rad++){
+   for(let dc=-rad;dc<=rad;dc++)for(let dr=-rad;dr<=rad;dr++){
+    if(Math.max(Math.abs(dc),Math.abs(dr))!==rad)continue; // 仅外圈
+    const tc=spawnPt.c+dc,tr=spawnPt.r+dr;
+    if(this._spawnable(tc,tr)){spawnAt(tc,tr);return;}
    }
   }
-  const t=new Tank(id,{c:spawnPt.c,r:spawnPt.r,face:'left',color,name,keys:{up:0,down:0,left:0,right:0,fire:[]}},this,aiClass);
-  t.ai=new AI(t,this,this.dynamicDifficulty.getEffectiveDifficulty());this.tanks.push(t);
+  // 3) 全图兜底扫描
+  for(let r=1;r<ROWS-1;r++)for(let c=1;c<COLS-1;c++){
+   if(this._spawnable(c,r)){spawnAt(c,r);return;}
+  }
+  spawnAt(spawnPt.c,spawnPt.r); // 理论不可达
+ }
+ _spawnable(tc,tr){
+  if(!(tc>=1&&tc<COLS-1&&tr>=1&&tr<ROWS-1))return false;
+  if(this.world.solidTank(tc,tr))return false;
+  // 防止与其他坦克重叠（含已生成的 AI）
+  const px=(tc+0.5)*CELL,py=(tr+0.5)*CELL;
+  return !this.tanks.some(t=>dist(t.x,t.y,px,py)<CELL*0.9);
  }
  startRound(){
   this.world=new World(MAP_DEFS[this.mapIdx]);
   const s1=this.world.spawns[0],s2=this.world.spawns[1];
+  // 基地保卫战：敌我基地分别建于双方出生点后方（每局重置血量）
+  if(this.gameMode===3){
+   if(!this.baseDefense)this.baseDefense=new BaseDefense(this,s1.c,s2.c);
+   else this.baseDefense.reset();
+   this.baseDefense.clearTerrain(this.world);
+  }
   const playerClass=this.playerTankClass||'medium';
   if(this.gameMode===0||this.gameMode===3||this.gameMode===4){
    // 单人/基地保卫战/护送装甲车：1个玩家+AI
@@ -148,7 +176,7 @@ class Game{
     new Tank(0,{c:s1.c,r:s1.r,face:'right',color:'#38bdf8',name:'玩家 1',keys:P1_KEYS},this,playerClass),
     new Tank(1,{c:s2.c,r:s2.r,face:'right',color:'#34d399',name:'玩家 2',keys:P2_KEYS},this,playerClass)
    ];
-   for(let i=0;i<this.aiCount;i++)this.spawnAI(i+2,s1,AI_COLORS_COOP[i],AI_NAMES_COOP[i],playerClass);
+   for(let i=0;i<this.aiCount;i++)this.spawnAI(i+2,s2,AI_COLORS_COOP[i],AI_NAMES_COOP[i],playerClass);
   }else{
    // 双人对战
    this.matchStats.length=2;
@@ -158,6 +186,7 @@ class Game{
    ];
   }
   this.bullets=[];this.powerups=[];this.mines=[];this.parts.clear();
+  this.trackMarks=[];
   this.puTimer=rand(CONFIG.POWERUP_INITIAL_MIN,CONFIG.POWERUP_INITIAL_MAX);
   this.state='countdown';this.cd=3;this.cdLast=4;
  }
@@ -185,14 +214,14 @@ class Game{
   this.puTimer-=dt;
   if(this.puTimer<=0){if(this.powerups.length<3)this.trySpawnPowerup();  this.puTimer=rand(CONFIG.POWERUP_INTERVAL_MIN,CONFIG.POWERUP_INTERVAL_MAX);}
   for(const p of this.powerups)for(const t of this.tanks)
-   if(!p.picked&&t.alive&&dist(p.x,p.y,t.x,t.y)<CONFIG.POWERUP_PICKUP_RANGE){p.picked=true;applyPower(this,t,p.type);if(t.isPlayer)this._checkCombo(p.type);}
+   if(!p.picked&&t.alive&&dist(p.x,p.y,t.x,t.y)<CONFIG.POWERUP_PICKUP_RANGE){p.picked=true;applyPower(this,t,p.type);if(t.isPlayer)this._checkCombo(p.type);if(t.collectedPowerups&&t.collectedPowerups.indexOf(p.type)===-1)t.collectedPowerups.push(p.type);}
   this.powerups=this.powerups.filter(p=>!p.picked);
   if(this.gameMode===0||this.gameMode===3||this.gameMode===4){
    const pDead=!this.tanks[0].alive,aiDead=this.tanks.slice(1).every(t=>!t.alive);
    // 特殊模式额外胜利条件
    let specialWin=null;
    if(this.gameMode===3&&this.baseDefense){
-    specialWin=this.baseDefense.checkWin(aiDead,!this.baseDefense.hq.alive);
+    specialWin=this.baseDefense.checkWin(aiDead,!this.baseDefense.playerHQ.alive,!this.baseDefense.enemyHQ.alive);
    }else if(this.gameMode===4&&this.convoyEscort){
     this.convoyEscort.updateTransport(dt);
     specialWin=this.convoyEscort.checkWin(aiDead,false);
@@ -201,12 +230,12 @@ class Game{
     this.scores[0]++;this.roundWinner=0;this.dynamicDifficulty.recordWin();
     this.dynamicDifficulty.recordGame();this.bannerT=2.6;this.state='round';
    }else if(specialWin==='hq_destroyed'||specialWin==='transport_destroyed'){
-    this.scores[1]++;this.roundWinner=1;this.dynamicDifficulty.recordWin();
+    this.scores[1]++;this.roundWinner=1;this.dynamicDifficulty.recordLoss();
     this.dynamicDifficulty.recordGame();this.bannerT=2.6;this.state='round';
    }else if(pDead||aiDead){
     if(pDead&&aiDead)this.roundWinner=-1;
-    else if(pDead){this.scores[1]++;this.roundWinner=1;this.dynamicDifficulty.recordWin();}
-    else{this.scores[0]++;this.roundWinner=0;this.dynamicDifficulty.recordLoss();}
+    else if(pDead){this.scores[1]++;this.roundWinner=1;this.dynamicDifficulty.recordLoss();}
+    else{this.scores[0]++;this.roundWinner=0;this.dynamicDifficulty.recordWin();}
     this.dynamicDifficulty.recordGame();
     this.bannerT=2.6;this.state='round';
    }
@@ -214,8 +243,8 @@ class Game{
    const pDead=this.tanks.slice(0,2).every(t=>!t.alive),aiDead=this.tanks.slice(2).every(t=>!t.alive);
    if(pDead||aiDead){
     if(pDead&&aiDead)this.roundWinner=-1;
-    else if(pDead){this.scores[1]++;this.roundWinner=1;this.dynamicDifficulty.recordWin();}
-    else{this.scores[0]++;this.roundWinner=0;this.dynamicDifficulty.recordLoss();}
+    else if(pDead){this.scores[1]++;this.roundWinner=1;this.dynamicDifficulty.recordLoss();}
+    else{this.scores[0]++;this.roundWinner=0;this.dynamicDifficulty.recordWin();}
     this.dynamicDifficulty.recordGame();
     this.bannerT=2.6;this.state='round';
    }
@@ -265,7 +294,7 @@ class Game{
      if(Input.pressed('KeyX'))this.aiCount=Math.min(10,this.aiCount+1);
     }
     if(Input.pressed('KeyL'))this.showLeaderboard=!this.showLeaderboard;
-    if(Input.pressed('Enter','Space')&&!this.showLeaderboard){this.startMatch(this.mapIdx);this.bgm.play('battle');}
+    if(Input.pressed('Enter','Space')&&!this.showLeaderboard&&this.tutorial.state!=='active'){this.startMatch(this.mapIdx);this.bgm.play('battle');}
     break;
    case'countdown':{
     this.cd-=dt;const n=Math.ceil(this.cd);
@@ -343,8 +372,8 @@ class Game{
   for(const t of this.tanks){
    if(t.alive&&t.tread>0){
     // 每隔一段距离添加履带印
-    if(chance(0.15)){
-     this.trackMarks.push({x:t.x,y:t.y,life:6,alpha:0.25});
+    if(chance(CONFIG.TRACK_MARK_CHANCE)){
+     this.trackMarks.push({x:t.x,y:t.y,life:CONFIG.TRACK_MARK_LIFE,alpha:CONFIG.TRACK_MARK_ALPHA});
     }
    }
   }
@@ -352,16 +381,19 @@ class Game{
   ctx.fillStyle='rgba(30,38,54,0.3)';
   for(let i=this.trackMarks.length-1;i>=0;i--){
    const tm=this.trackMarks[i];
-   ctx.globalAlpha=tm.alpha*(tm.life/6);
+   ctx.globalAlpha=tm.alpha*(tm.life/CONFIG.TRACK_MARK_LIFE);
    ctx.fillRect(tm.x-4,tm.y-2,8,4);
-   tm.life-=0.016;
+   tm.life-=(this.dt&&this.dt>0)?this.dt:0.016;
    if(tm.life<=0)this.trackMarks.splice(i,1);
   }
   ctx.globalAlpha=1;
+  // 绘制基地/运输车
+  if(this.gameMode===3&&this.baseDefense)this.baseDefense.draw(ctx,this.time);
+  if(this.gameMode===4&&this.convoyEscort)this.convoyEscort.draw(ctx,this.time);
   for(const m of this.mines)m.draw(ctx);
   for(const p of this.powerups)p.draw(ctx);
   for(const b of this.bullets)b.draw(ctx);
-  for(const t of this.tanks)t.draw(ctx,this.time);
+  for(const t of this.tanks)t.draw(ctx,this.time,this.dt);
   this.world.drawGrass(ctx);this.parts.draw(ctx);
   ctx.restore();
   const grd=ctx.createLinearGradient(FIELD_X,FIELD_Y,FIELD_X,FIELD_Y+FIELD_H);
@@ -400,7 +432,7 @@ class Game{
    for(let i=0;i<WIN_ROUNDS;i++)this.drawPip(ctx,R-18-i*30,64,this.scores[1]>i,p2.color);
    this.drawChips(ctx,p2,R-80,60,true);
   }else{
-   const aiIdx=this.gameMode===0?1:2;
+   const aiIdx=(this.gameMode===0||this.gameMode===3||this.gameMode===4)?1:2;
    const aiAlive=this.tanks.slice(aiIdx).filter(t=>t.alive).length;
    const aiTotal=this.tanks.length-aiIdx;
    const diffN=['简单','普通','困难'],diffC=['#5dff70','#ffd23f','#ff5d5d'];
@@ -445,7 +477,8 @@ class Game{
   ctx.save();ctx.font='bold 13px '+FONT;ctx.textBaseline='middle';
   let cx=x;
   for(const k of list){
-   const c=POWER_TYPES[k].color,label=Math.ceil(tank.buff[k])+'s';
+   const pt=POWER_TYPES[k];if(!pt)continue; // slow 由断履带/EMP 写入，非道具类型
+   const c=pt.color,label=Math.ceil(tank.buff[k])+'s';
    const wTxt=ctx.measureText(label).width,total=26+6+wTxt;
    const bx=rtl?cx-total:cx;
    ctx.fillStyle='rgba(10,14,22,0.88)';rr(ctx,bx,y-12,total,24,6);ctx.fill();
@@ -695,6 +728,7 @@ class Game{
   return h;
  }
  drawLeaderboard(ctx){
+  const CX=VIEW_W/2;
   const bw=500,bh=400,bx=CX-bw/2,by=VIEW_H/2-bh/2;
   ctx.fillStyle='rgba(4,6,10,0.92)';rr(ctx,bx,by,bw,bh,14);ctx.fill();
   ctx.strokeStyle='#ffd23f';ctx.lineWidth=2;rr(ctx,bx,by,bw,bh,14);ctx.stroke();

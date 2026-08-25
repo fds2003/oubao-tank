@@ -9,6 +9,9 @@ window.addEventListener('DOMContentLoaded',()=>{
  resize();
  Input.init();
  const game=new Game(canvas.getContext('2d'),dpr);
- window.addEventListener('blur',()=>game.autoPause());
+ window.__game=game; // 调试/自动化测试钩子
+ const blurHandler=()=>game.autoPause();
+ window.addEventListener('blur',blurHandler);
  game.start();
+ game._cleanup=()=>{window.removeEventListener('blur',blurHandler);Input.destroy();};
 });

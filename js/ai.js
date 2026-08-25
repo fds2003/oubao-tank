@@ -43,9 +43,16 @@ class AI{
      const d=Math.hypot(t.x-this.tank.x,t.y-this.tank.y);
      if(d<bestD){bestD=d;p=t;}
     }
+   }else if(this.game.gameMode===4&&this.game.convoyEscort&&this.game.convoyEscort.transport.alive){
+    // 护送模式：AI 优先伏击运输车（近距离时），否则追击玩家
+    const tr=this.game.convoyEscort.transport;
+    const dTr=Math.hypot(tr.x-this.tank.x,tr.y-this.tank.y);
+    const t=this.game.tanks[0];
+    const dP=t&&t.alive?Math.hypot(t.x-this.tank.x,t.y-this.tank.y):Infinity;
+    p=dTr<=CONFIG.AI_ESCORT_ATTACK_RANGE||dTr<dP?tr:t;
    }else{
     const t=this.game.tanks[0];
-    if(t.alive)p=t;
+    if(t&&t.alive)p=t;
    }
    if(this.diff==='easy'){
     if(p&&chance(0.4))this.wantedDir=this.dirTo(p);

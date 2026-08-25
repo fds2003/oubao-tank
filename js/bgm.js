@@ -59,7 +59,7 @@ var BGM = (function(){
     this.gainNode = this.audioCtx.createGain();
     this.gainNode.gain.value = this.volume;
     this.gainNode.connect(this.audioCtx.destination);
-   } catch(e) {}
+   } catch(e) { console.warn('BGM init failed:', e); }
   }
 
   play(trackName) {
@@ -115,7 +115,7 @@ var BGM = (function(){
    this.currentTrack = null;
    if (this.loopTimer) { clearTimeout(this.loopTimer); this.loopTimer = null; }
    for (const node of this.scheduledNodes) {
-    try { node.stop(); } catch(e) {}
+    try { node.stop(); } catch(e) { console.warn('BGM node.stop failed:', e); }
    }
    this.scheduledNodes = [];
   }
@@ -125,7 +125,7 @@ var BGM = (function(){
    this.isPaused = true;
    if (this.loopTimer) { clearTimeout(this.loopTimer); this.loopTimer = null; }
    for (const node of this.scheduledNodes) {
-    try { node.stop(); } catch(e) {}
+    try { node.stop(); } catch(e) { console.warn('BGM node.stop failed:', e); }
    }
    this.scheduledNodes = [];
   }

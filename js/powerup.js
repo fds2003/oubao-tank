@@ -140,8 +140,8 @@ class Mine{
   if(!this.armed)return;
   const game=this.owner.game;
   for(const t of game.tanks){
-     if(t===this.owner||!t.alive)continue;
-     if(game.gameMode!==1&&(t.ai===null)===(this.owner.ai===null))continue;
+    if(t===this.owner||!t.alive)continue;
+    if(game.gameMode!==1&&t.team===this.owner.team)continue;
    if(dist(this.x,this.y,t.x,t.y)<CONFIG.POWERUP_PICKUP_RANGE){
     this.dead=true;
     game.parts.explosion(this.x,this.y,'#ffaa33');
@@ -183,17 +183,15 @@ function applyPower(game,tank,type){
   if(game.gameMode===0||game.gameMode===2){
    let count=0;
    for(const t of game.tanks){
-    if(t!==tank&&t.alive){
-     if(game.gameMode===2&&t.ai===null)continue;
-     count++;
-    }
+    if(t===tank||!t.alive)continue;
+    if(t.team===tank.team)continue;
+    count++;
    }
    const dur=count>0?Math.max(0.6,2.2/Math.sqrt(count)):0;
    for(const t of game.tanks){
-    if(t!==tank&&t.alive){
-     if(game.gameMode===2&&t.ai===null)continue;
-     t.buff.freeze=dur;t.buffMax.freeze=dur;
-    }
+    if(t===tank||!t.alive)continue;
+    if(t.team===tank.team)continue;
+    t.buff.freeze=dur;t.buffMax.freeze=dur;
    }
    AudioSys.freeze();
    game.parts.text(tank.x,tank.y-30,'全屏冰冻！','#9ad8ff');
@@ -230,12 +228,11 @@ function applyPower(game,tank,type){
   if(type==='emp'){
    let count=0;
    for(const t of game.tanks){
-    if(t!==tank&&t.alive){
-     if(game.gameMode===2&&t.ai===null&&tank.ai===null)continue;
-     if(t.buff.shield>0){t.buff.shield=0;count++;}
-     t.buff.speed=0;t.buffMax.speed=0;
-     t.buff.slow=CONFIG.EMP_SLOW_DURATION;t.buffMax.slow=CONFIG.EMP_SLOW_DURATION;
-    }
+    if(t===tank||!t.alive)continue;
+    if(t.team===tank.team)continue;
+    if(t.buff.shield>0){t.buff.shield=0;count++;}
+    t.buff.speed=0;t.buffMax.speed=0;
+    t.buff.slow=CONFIG.EMP_SLOW_DURATION;t.buffMax.slow=CONFIG.EMP_SLOW_DURATION;
    }
   AudioSys.emp();
   game.parts.ring(tank.x,tank.y,'#22eeff',60,4,0.45);

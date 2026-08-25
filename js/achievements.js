@@ -40,16 +40,15 @@ var AchievementSystem = (function(){
      this.unlocked = data.unlocked || [];
      Object.assign(this.stats, data.stats || {});
     }
-   } catch(e) {}
+   } catch(e) { console.warn('Achievements load failed:', e); }
   }
-
   _save() {
    try {
     localStorage.setItem('oubao_achievements', JSON.stringify({
      unlocked: this.unlocked,
      stats: this.stats,
     }));
-   } catch(e) {}
+   } catch(e) { console.warn('Achievements save failed:', e); }
   }
 
   isUnlocked(id) {
@@ -133,7 +132,7 @@ var AchievementSystem = (function(){
    if (result.shots > 0 && (result.hits / result.shots) >= 0.8 && this._unlock('accuracy_80')) newlyUnlocked.push('accuracy_80');
    if (result.won && result.survived && this._unlock('survivor')) newlyUnlocked.push('survivor');
    if (result.killed >= 10 && this._unlock('tank_killer')) newlyUnlocked.push('tank_killer');
-   if (result.lastHp === 1 && result.won && this._unlock('close_call')) newlyUnlocked.push('close_call');
+   if (result.lastHp > 0 && result.lastHp <= 1 && result.won && this._unlock('close_call')) newlyUnlocked.push('close_call');
    if (result.coop && result.won && this._unlock('teamwork')) newlyUnlocked.push('teamwork');
    if (this.stats.totalGames >= 10 && this._unlock('marathon')) newlyUnlocked.push('marathon');
 
@@ -154,7 +153,7 @@ var AchievementSystem = (function(){
     this.unlocked = data.unlocked || [];
     Object.assign(this.stats, data.stats || {});
     this._save();
-   } catch(e) {}
+   } catch(e) { console.warn('Achievements import failed:', e); }
   }
 
   reset() {

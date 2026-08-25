@@ -6,10 +6,10 @@
  */
 
 var DynamicDifficulty = class DynamicDifficulty {
-  constructor() {
+  constructor(initialDifficulty) {
     this.winStreak = 0;
     this.loseStreak = 0;
-    this.baseDifficulty = 1; // 0=简单, 1=普通, 2=困难
+    this.baseDifficulty = initialDifficulty !== undefined ? initialDifficulty : 1; // 0=简单, 1=普通, 2=困难
     this.minDifficulty = 0;
     this.maxDifficulty = 2;
     this.streakThreshold = 3; // 连胜/连败多少局触发难度变化

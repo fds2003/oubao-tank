@@ -1,0 +1,21 @@
+{
+  "name": "oubao-tankgame",
+  "version": "1.0.0",
+  "description": "本地多人坦克对战游戏，纯 HTML5/Canvas/JS 实现，零外部依赖。",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "http://pxy.linghit.cn/fds2003/oubao-tankgame.git"
+  },
+  "keywords": [],
+  "type": "commonjs",
+  "devDependencies": {
+    "playwright": "^1.62.1"
+  }
+}

@@ -67,13 +67,13 @@ var Tutorial = class Tutorial {
   static markCompleted() {
     try {
       localStorage.setItem(TUTORIAL_STORAGE_KEY, 'true');
-    } catch (e) {}
+    } catch (e) { console.warn('Tutorial save failed:', e); }
   }
 
   static reset() {
     try {
       localStorage.removeItem(TUTORIAL_STORAGE_KEY);
-    } catch (e) {}
+    } catch (e) { console.warn('Tutorial reset failed:', e); }
   }
 
   start() {

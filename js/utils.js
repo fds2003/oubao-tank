@@ -12,6 +12,14 @@ const DIRS={
  right:{x:1,y:0,a:0}
 };
 const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+// ---- 核心战斗常量（原 tank.js，集中管理；全项目引用名不变） ----
+const TANK_SIZE=42,TANK_HALF=21;
+const TANK_SPEED=180,SPEED_BOOSTED=270;
+const BULLET_SPEED=430;
+const NORMAL_DMG=35,HEAVY_DMG=55;
+const COOLDOWN=0.4,RAPID_CD=0.18;
+const MAX_BULLETS=2,RAPID_BULLETS=4;
+const HP_MAX=100;
 const lerp=(a,b,t)=>a+(b-a)*t;
 const rand=(a,b)=>a+Math.random()*(b-a);
 const randInt=(a,b)=>Math.floor(rand(a,b+1));
@@ -51,5 +59,9 @@ const CONFIG={
  EMP_SLOW_DURATION:3,
  MINE_LIFE:18,MINE_ARM_TIME:0.8,MINE_DAMAGE:50,
  AI_DODGE_RANGE:80,AI_SEEK_RANGE:200,AI_LOS_STEP:0.4,
+ AI_ESCORT_ATTACK_RANGE:400, // 护送模式：运输车在此范围内成为AI优先目标
+ TRACK_MARK_CHANCE:0.15,TRACK_MARK_LIFE:6,TRACK_MARK_ALPHA:0.25, // 履带压痕
+ SMOKE_HEAVY_BELOW:0.2,SMOKE_LIGHT_BELOW:0.5, // 战损冒烟HP阈值（重烟/轻烟）
+ TRANSPORT_HIT_HALF_W:22,TRANSPORT_HIT_HALF_H:14, // 运输车碰撞半宽/半高
  WIN_ROUNDS:5
 };

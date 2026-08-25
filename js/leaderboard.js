@@ -21,13 +21,12 @@ var Leaderboard = (function(){
      const data = JSON.parse(raw);
      this.players = data.players || [];
     }
-   } catch(e) {}
+   } catch(e) { console.warn('Leaderboard load failed:', e); }
   }
-
   _save() {
    try {
     localStorage.setItem('oubao_leaderboard', JSON.stringify({ players: this.players }));
-   } catch(e) {}
+   } catch(e) { console.warn('Leaderboard save failed:', e); }
   }
 
   addPlayer(name, avatar) {
@@ -110,7 +109,7 @@ var Leaderboard = (function(){
     const data = JSON.parse(jsonStr);
     this.players = data.players || [];
     this._save();
-   } catch(e) {}
+   } catch(e) { console.warn('Leaderboard import failed:', e); }
   }
 
   reset() {

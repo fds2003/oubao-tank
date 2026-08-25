@@ -23,6 +23,21 @@ class Bullet{
    this.trailT=0;
    game.parts.trail(this.x,this.y,this.owner.color,this.dir);
   }
+  // 基地保卫战：子弹按阵营伤害对应基地（2x2 格），优先于地形判定
+  // 玩家子弹打敌方基地，AI 子弹打玩家基地
+  if(game.gameMode===3&&game.baseDefense){
+   const bd=game.baseDefense;
+   const target=this.owner.team===0?bd.enemyHQ:bd.playerHQ;
+   const hqHalf=CELL*target.size/2;
+   if(Math.abs(this.x-target.x)<=hqHalf&&Math.abs(this.y-target.y)<=hqHalf){
+    game.baseDefense.takeDamage(this.damage,this.owner.team===0?'enemy':'player');
+    game.parts.debris(this.x,this.y,this.owner.team===0?'#ffd23f':'#ff5d5d',8,150);
+    game.parts.flash(this.x,this.y,14);
+    AudioSys.crack();game.addShake(2);
+    if(!target.alive)game.parts.explosion(target.x,target.y,'#ffd23f');
+    this.dead=true;return;
+   }
+  }
   const c=Math.floor(this.x/CELL),r=Math.floor(this.y/CELL);
   const t=game.world.at(c,r);
   if(t==='#'){this.dead=true;return;}
@@ -56,7 +71,8 @@ class Bullet{
   }
   for(const tk of game.tanks){
     if(tk===this.owner||!tk.alive)continue;
-    if((tk.ai===null)===(this.owner.ai===null))continue;    if(Math.abs(this.x-tk.x)<CONFIG.BULLET_HIT_RANGE&&Math.abs(this.y-tk.y)<CONFIG.BULLET_HIT_RANGE){
+    if(tk.team===this.owner.team)continue;
+    if(Math.abs(this.x-tk.x)<CONFIG.BULLET_HIT_RANGE&&Math.abs(this.y-tk.y)<CONFIG.BULLET_HIT_RANGE){
     // 物理系统计算伤害
     const phys=game.physics.calculateDamage(tk,{x:this.x,y:this.y},this.damage);
     if(phys.isRicochet){
@@ -78,9 +94,21 @@ class Bullet{
     this.dead=true;return;
    }
   }
+  // 护送装甲车：敌方(AI)子弹伤害运输车，玩家子弹不误伤己方
+  if(game.gameMode===4&&game.convoyEscort&&game.convoyEscort.transport.alive&&this.owner.team===1){
+   const tr=game.convoyEscort.transport;
+   if(Math.abs(this.x-tr.x)<CONFIG.TRANSPORT_HIT_HALF_W&&Math.abs(this.y-tr.y)<CONFIG.TRANSPORT_HIT_HALF_H){
+    game.convoyEscort.transportTakeDamage(this.damage);
+    game.parts.debris(this.x,this.y,'#7a8599',6,120);
+    game.parts.flash(this.x,this.y,10);
+    AudioSys.crack();game.addShake(1.5);
+    if(!tr.alive)game.parts.explosion(tr.x,tr.y,'#ff8c42');
+    this.dead=true;return;
+   }
+  }
   for(const b of game.bullets){
    if(b===this||b.dead||b.owner===this.owner)continue;
-   if(Math.abs(b.x-this.x)<11&&Math.abs(b.y-this.y)<11){
+   if(Math.abs(b.x-this.x)<CONFIG.BULLET_HIT_RANGE*0.4&&Math.abs(b.y-this.y)<CONFIG.BULLET_HIT_RANGE*0.4){
     b.dead=true;this.dead=true;
     const mx=(b.x+this.x)/2,my=(b.y+this.y)/2;
     AudioSys.clink();
