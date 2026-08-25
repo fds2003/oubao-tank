@@ -43,17 +43,21 @@ class Game{
  this.physics=new Physics();
  this.baseDefense=null;
  this.convoyEscort=null;
+ this.hitmarker=0;
  }
  start(){requestAnimationFrame(ts=>this.loop(ts));}
  loop(ts){
   const dt=Math.min(0.033,(ts-this.lastTs)/1000||0.016);
   this.lastTs=ts;this.time+=dt;this.dt=dt;
+  Input.pollGamepad();
   this.update(dt);this.draw();
   Input.endFrame();
   requestAnimationFrame(t=>this.loop(t));
  }
  addShake(v){this.shake=Math.min(10,Math.max(this.shake,v));}
  triggerDamageFlash(){this.damageFlash=0.3;}
+ triggerHitmarker(){this.hitmarker=0.18;}
+ getMouseFieldPos(){return{x:Input.mouse.x-FIELD_X,y:Input.mouse.y-FIELD_Y};}
  autoPause(){if(this.state==='play')this.state='pause';}
  _recordMatchResult(){
   const won=this.matchWinner===0;
@@ -112,8 +116,8 @@ class Game{
   startMatch(i){
    this.mapIdx=i;this.scores=[0,0];this.roundNum=1;
    this.matchWinner=-1;
-   // gameMode 3=基地保卫战, 4=护送装甲车 使用1+AI配置
-   const isSpecialMode=this.gameMode===3||this.gameMode===4;
+   // gameMode 3=基地保卫战, 4=护送装甲车, 5=车长同乘 使用1+AI配置
+   const isSpecialMode=this.gameMode===3||this.gameMode===4||this.gameMode===5;
    const n=this.gameMode===1?2:(this.gameMode===2?2+this.aiCount:(isSpecialMode?1+this.aiCount:1+this.aiCount));
    this.matchStats=[];for(let j=0;j<n;j++)this.matchStats.push({shots:0,hits:0,dmg:0});
    this.fade=0;this.fadeTarget=1;
@@ -165,10 +169,11 @@ class Game{
    this.baseDefense.clearTerrain(this.world);
   }
   const playerClass=this.playerTankClass||'medium';
-  if(this.gameMode===0||this.gameMode===3||this.gameMode===4){
-   // 单人/基地保卫战/护送装甲车：1个玩家+AI
+  if(this.gameMode===0||this.gameMode===3||this.gameMode===4||this.gameMode===5){
+   // 单人/基地保卫战/护送装甲车/车长同乘：1个玩家+AI
    while(this.matchStats.length<1+this.aiCount)this.matchStats.push({shots:0,hits:0,dmg:0});
-   this.tanks=[new Tank(0,{c:s1.c,r:s1.r,face:'right',color:'#38bdf8',name:'玩家',keys:P1_KEYS},this,playerClass)];
+   const pName=this.gameMode===5?'车长双人组':'玩家';
+   this.tanks=[new Tank(0,{c:s1.c,r:s1.r,face:'right',color:'#38bdf8',name:pName,keys:P1_KEYS},this,playerClass)];
    for(let i=0;i<this.aiCount;i++)this.spawnAI(i+1,s2,AI_COLORS[i],AI_NAMES[i],playerClass);
   }else if(this.gameMode===2){
    while(this.matchStats.length<2+this.aiCount)this.matchStats.push({shots:0,hits:0,dmg:0});
@@ -258,6 +263,7 @@ class Game{
   this.menuT+=dt;this.parts.update(dt);
   this.shake=Math.max(0,this.shake-dt*16);
   if(this.damageFlash>0&&dt>0)this.damageFlash=Math.max(0,this.damageFlash-dt);
+  if(this.hitmarker>0&&dt>0)this.hitmarker=Math.max(0,this.hitmarker-dt);
   // 成就通知计时
   for(let i=this.achievementNotify.length-1;i>=0;i--){
    this.achievementNotify[i].timer-=dt;
@@ -272,30 +278,51 @@ class Game{
   if(Input.pressed('KeyM'))AudioSys.toggleMute();
   if(this.tutorial.state==='active'){
    this.tutorial.update(dt);
-   if(Input.pressed('Escape'))this.tutorial.handleInput('Escape');
-   else if(Input.pressed('Space','Enter','Digit1','Digit2','Digit3','ArrowLeft','ArrowRight'))this.tutorial.handleInput('Space');
+   const pBtns=(Input.gamepads&&Input.gamepads[0]&&Input.gamepads[0].btns)||{};
+   if(Input.pressed('Escape')||(pBtns.b&&!this._padBtutorialLast))this.tutorial.handleInput('Escape');
+   else if(Input.pressed('Space','Enter','Digit1','Digit2','Digit3','ArrowLeft','ArrowRight')||((pBtns.a||pBtns.start)&&!this._padAtutorialLast))this.tutorial.handleInput('Space');
+   this._padBtutorialLast=!!pBtns.b;
+   this._padAtutorialLast=!!(pBtns.a||pBtns.start);
   }
   switch(this.state){
-   case'menu':
-    if(Input.pressed('Digit1'))this.gameMode=0;
-    if(Input.pressed('Digit2'))this.gameMode=1;
-    if(Input.pressed('Digit3'))this.gameMode=2;
-    if(Input.pressed('Digit4'))this.gameMode=3; // 基地保卫战
-    if(Input.pressed('Digit5'))this.gameMode=4; // 护送装甲车
-    if(Input.pressed('ArrowLeft'))this.mapIdx=(this.mapIdx+MAP_DEFS.length-1)%MAP_DEFS.length;
-    if(Input.pressed('ArrowRight'))this.mapIdx=(this.mapIdx+1)%MAP_DEFS.length;
-    if(Input.pressed('ArrowUp')){const row=Math.floor(this.mapIdx/6);if(row>0)this.mapIdx-=6;}
-    if(Input.pressed('ArrowDown')){const row=Math.floor(this.mapIdx/6);if(row<1)this.mapIdx+=6;}
-    if(Input.pressed('KeyC')){this.tankClassIndex=(this.tankClassIndex-1+this.tankClassList.length)%this.tankClassList.length;this.playerTankClass=this.tankClassList[this.tankClassIndex];}
-    if(Input.pressed('KeyV')){this.tankClassIndex=(this.tankClassIndex+1)%this.tankClassList.length;this.playerTankClass=this.tankClassList[this.tankClassIndex];}
-    if(this.gameMode===0||this.gameMode===2){
-     if(Input.pressed('KeyQ'))this.aiDifficulty=(this.aiDifficulty+1)%3;
-     if(Input.pressed('KeyZ'))this.aiCount=Math.max(1,this.aiCount-1);
-     if(Input.pressed('KeyX'))this.aiCount=Math.min(10,this.aiCount+1);
+   case'menu':{
+    const pBtns=(Input.gamepads&&Input.gamepads[0]&&Input.gamepads[0].btns)||{};
+    if(Input.pressed('Digit1','Numpad1'))this.gameMode=0;
+    if(Input.pressed('Digit2','Numpad2'))this.gameMode=1;
+    if(Input.pressed('Digit3','Numpad3'))this.gameMode=2;
+    if(Input.pressed('Digit4','Numpad4'))this.gameMode=3; // 基地保卫战
+    if(Input.pressed('Digit5','Numpad5'))this.gameMode=4; // 护送装甲车
+    if(Input.pressed('Digit6','Numpad6'))this.gameMode=5; // 车长同乘模式
+    if(Input.mousePressed()){
+     const mx=Input.mouse.x,my=Input.mouse.y;
+     const CX=VIEW_W/2,btnW=100,btnH=36,btnGap=6,btnX=CX-(6*(btnW+btnGap)-btnGap)/2;
+     if(my>=128&&my<=128+btnH){
+      for(let m=0;m<6;m++){
+       const bx=btnX+m*(btnW+btnGap);
+       if(mx>=bx&&mx<=bx+btnW){this.gameMode=m;AudioSys.beep();}
+      }
+     }
     }
-    if(Input.pressed('KeyL'))this.showLeaderboard=!this.showLeaderboard;
-    if(Input.pressed('Enter','Space')&&!this.showLeaderboard&&this.tutorial.state!=='active'){this.startMatch(this.mapIdx);this.bgm.play('battle');}
-    break;
+    if(Input.pressed('ArrowLeft')||(pBtns.left&&!this._padLeftLast))this.mapIdx=(this.mapIdx+MAP_DEFS.length-1)%MAP_DEFS.length;
+    if(Input.pressed('ArrowRight')||(pBtns.right&&!this._padRightLast))this.mapIdx=(this.mapIdx+1)%MAP_DEFS.length;
+    if(Input.pressed('ArrowUp')||(pBtns.up&&!this._padUpLast)){const row=Math.floor(this.mapIdx/6);if(row>0)this.mapIdx-=6;}
+    if(Input.pressed('ArrowDown')||(pBtns.down&&!this._padDownLast)){const row=Math.floor(this.mapIdx/6);if(row<1)this.mapIdx+=6;}
+    if(Input.pressed('KeyC')||(pBtns.lb&&!this._padLbLast)){this.tankClassIndex=(this.tankClassIndex-1+this.tankClassList.length)%this.tankClassList.length;this.playerTankClass=this.tankClassList[this.tankClassIndex];}
+    if(Input.pressed('KeyV')||(pBtns.rb&&!this._padRbLast)){this.tankClassIndex=(this.tankClassIndex+1)%this.tankClassList.length;this.playerTankClass=this.tankClassList[this.tankClassIndex];}
+    if(this.gameMode===0||this.gameMode===2||this.gameMode===5){
+     if(Input.pressed('KeyQ')||(pBtns.y&&!this._padYLast))this.aiDifficulty=(this.aiDifficulty+1)%3;
+     if(Input.pressed('KeyZ'))this.aiCount=Math.max(1,this.aiCount-1);
+     if(Input.pressed('KeyX')||(pBtns.x&&!this._padXLast))this.aiCount=Math.min(10,this.aiCount+1);
+    }
+    if(Input.pressed('KeyL')||(pBtns.select&&!this._padSelectLast))this.showLeaderboard=!this.showLeaderboard;
+    const startPressed=Input.pressed('Enter','Space')||((pBtns.a||pBtns.start)&&!this._padStartLast);
+    if(startPressed&&!this.showLeaderboard&&this.tutorial.state!=='active'){this.startMatch(this.mapIdx);this.bgm.play('battle');}
+    this._padLeftLast=!!pBtns.left;this._padRightLast=!!pBtns.right;
+    this._padUpLast=!!pBtns.up;this._padDownLast=!!pBtns.down;
+    this._padLbLast=!!pBtns.lb;this._padRbLast=!!pBtns.rb;
+    this._padXLast=!!pBtns.x;this._padYLast=!!pBtns.y;
+    this._padSelectLast=!!pBtns.select;this._padStartLast=!!(pBtns.a||pBtns.start);
+    break;}
    case'countdown':{
     this.cd-=dt;const n=Math.ceil(this.cd);
     if(n!==this.cdLast){this.cdLast=n;if(n>0)AudioSys.beep();}
@@ -314,9 +341,10 @@ class Game{
     if(this.confT<=0){this.confT=0.09;this.parts.confetti(rand(60,VIEW_W-60));if(chance(0.5))this.parts.confetti(rand(60,VIEW_W-60));}
     if(Input.pressed('KeyR')){this.startMatch(this.mapIdx);this.bgm.play('battle');}
     if(Input.pressed('Escape')){this.state='menu';this.bgm.play('menu');}break;
-   case'pause':
-    if(Input.pressed('KeyP','Enter')){this.state='play';this.bgm.resume();}
-    else if(Input.pressed('Escape')){this.state='menu';this.bgm.stop();this.bgm.play('menu');}break;
+   case'pause':{
+    const pBtns=(Input.gamepads&&Input.gamepads[0]&&Input.gamepads[0].btns)||{};
+    if(Input.pressed('KeyP','Enter')||pBtns.start||pBtns.a){this.state='play';this.bgm.resume();}
+    else if(Input.pressed('Escape')||pBtns.b){this.state='menu';this.bgm.stop();this.bgm.play('menu');}break;}
   }
  }
  draw(){
@@ -386,15 +414,17 @@ class Game{
    tm.life-=(this.dt&&this.dt>0)?this.dt:0.016;
    if(tm.life<=0)this.trackMarks.splice(i,1);
   }
-  ctx.globalAlpha=1;
-  // 绘制基地/运输车
-  if(this.gameMode===3&&this.baseDefense)this.baseDefense.draw(ctx,this.time);
   if(this.gameMode===4&&this.convoyEscort)this.convoyEscort.draw(ctx,this.time);
   for(const m of this.mines)m.draw(ctx);
   for(const p of this.powerups)p.draw(ctx);
   for(const b of this.bullets)b.draw(ctx);
   for(const t of this.tanks)t.draw(ctx,this.time,this.dt);
   this.world.drawGrass(ctx);this.parts.draw(ctx);
+  // 车长同乘模式下在场景内绘制科技感准星与瞄准锁定
+  if(this.state==='play'&&this.gameMode===5){
+   const mp=this.getMouseFieldPos();
+   this.drawCrosshair(ctx,mp.x,mp.y);
+  }
   ctx.restore();
   const grd=ctx.createLinearGradient(FIELD_X,FIELD_Y,FIELD_X,FIELD_Y+FIELD_H);
   grd.addColorStop(0,'rgba(11,13,18,0.5)');grd.addColorStop(0.06,'rgba(11,13,18,0)');
@@ -432,7 +462,7 @@ class Game{
    for(let i=0;i<WIN_ROUNDS;i++)this.drawPip(ctx,R-18-i*30,64,this.scores[1]>i,p2.color);
    this.drawChips(ctx,p2,R-80,60,true);
   }else{
-   const aiIdx=(this.gameMode===0||this.gameMode===3||this.gameMode===4)?1:2;
+   const aiIdx=(this.gameMode===0||this.gameMode===3||this.gameMode===4||this.gameMode===5)?1:2;
    const aiAlive=this.tanks.slice(aiIdx).filter(t=>t.alive).length;
    const aiTotal=this.tanks.length-aiIdx;
    const diffN=['简单','普通','困难'],diffC=['#5dff70','#ffd23f','#ff5d5d'];
@@ -440,18 +470,26 @@ class Game{
    ctx.fillStyle='#ff8c42';ctx.fillText('AI 阵营',R,26);
    ctx.font='16px '+FONT;ctx.fillStyle=diffC[this.aiDifficulty];ctx.fillText(diffN[this.aiDifficulty],R,48);
    ctx.fillStyle='#7a8599';ctx.fillText('存活 '+aiAlive+'/'+aiTotal,R,68);
-   for(let i=0;i<WIN_ROUNDS;i++)this.drawPip(ctx,R-18-i*30,82,this.scores[1]>i,'#ff8c42');
   }
-   ctx.textAlign='center';ctx.font='bold 26px '+FONT;ctx.fillStyle='#ffd23f';
-   ctx.fillText('第 '+this.roundNum+' 局',CX,14);
-   ctx.font='16px '+FONT;ctx.fillStyle='#5a6478';
-   const modeLabels=['单人','双人','协作','基地保卫战','护送装甲车'];
-   const ml=this.gameMode===0||this.gameMode===2||this.gameMode===3||this.gameMode===4?modeLabels[this.gameMode]+' · '+['简单','普通','困难'][this.aiDifficulty]+' ×'+this.aiCount:'双人对战';
-   ctx.fillText(MAP_DEFS[this.mapIdx].name+' · '+ml+' · 先胜'+WIN_ROUNDS,CX,VIEW_H-20);
-   if(AudioSys.muted){ctx.fillStyle='#5a6478';ctx.fillText('🔇 静音中',CX,VIEW_H-40);}
-   ctx.font='16px '+FONT;ctx.fillStyle='#3a4255';
-   const h=this.gameMode===0?'WASD 移动 · F/空格 开火 · P 暂停':this.gameMode===2?'P1:WASD·F   P2:方向键·L   P 暂停':'P1:WASD·F   P2:方向键·L   P 暂停';
-   ctx.fillText(h,CX,VIEW_H-4);
+  // 手柄连接指示徽章
+  const p1Pad=Input.gamepads&&Input.gamepads[0]&&Input.gamepads[0].connected;
+  const p2Pad=Input.gamepads&&Input.gamepads[1]&&Input.gamepads[1].connected;
+  if(p1Pad||p2Pad){
+   ctx.save();
+   ctx.font='bold 13px '+FONT;ctx.textAlign='center';
+   let txt='🎮 ';
+   if(p1Pad&&p2Pad)txt+='P1+P2 手柄已就绪';
+   else if(p1Pad)txt+='P1 手柄已就绪';
+   else txt+='P2 手柄已就绪';
+   ctx.fillStyle='rgba(12,16,24,0.85)';
+   const tw=ctx.measureText(txt).width+20;
+   rr(ctx,CX-tw/2,10,tw,24,6);ctx.fill();
+   ctx.strokeStyle='#38bdf8';ctx.lineWidth=1;
+   rr(ctx,CX-tw/2,10,tw,24,6);ctx.stroke();
+   ctx.fillStyle='#38bdf8';
+   ctx.fillText(txt,CX,26);
+   ctx.restore();
+  }
  }
  drawHpBar(ctx,x,y,w,tank,flip){
   ctx.fillStyle='#0e1219';rr(ctx,x,y,w,16,4);ctx.fill();
@@ -613,14 +651,14 @@ class Game{
   ctx.fillText('坦 克 大 战',CX,68);ctx.shadowBlur=0;
   ctx.font='bold 16px '+FONT;ctx.fillStyle='#5a6478';
   ctx.fillText('OUBAO TANK ARENA · 本地对战',CX,104);
-  const modeNames=['单人 [1]','双人 [2]','协作 [3]','基地 [4]','护送 [5]'];
-  const btnW=110,btnH=36,btnGap=8,btnX=CX-(modeNames.length*(btnW+btnGap)-btnGap)/2;
+  const modeNames=['单人 [1]','双人 [2]','协作 [3]','基地 [4]','护送 [5]','同乘 [6]'];
+  const btnW=100,btnH=36,btnGap=6,btnX=CX-(modeNames.length*(btnW+btnGap)-btnGap)/2;
   for(let m=0;m<modeNames.length;m++){
    const bx=btnX+m*(btnW+btnGap),sel=this.gameMode===m;
    if(sel){ctx.shadowColor='#ffd23f';ctx.shadowBlur=14;}
    ctx.fillStyle=sel?'#ffd23f':'rgba(22,28,40,0.95)';rr(ctx,bx,128,btnW,btnH,6);ctx.fill();
    ctx.strokeStyle=sel?'#ffd23f':'#252d3d';ctx.lineWidth=1;rr(ctx,bx,128,btnW,btnH,6);ctx.stroke();ctx.shadowBlur=0;
-   ctx.fillStyle=sel?'#0b0d12':'#7a8599';ctx.font='bold 14px '+FONT;
+   ctx.fillStyle=sel?'#0b0d12':'#7a8599';ctx.font='bold 13px '+FONT;
    ctx.fillText(modeNames[m],bx+btnW/2,128+btnH/2);
   }   ctx.font='16px '+FONT;ctx.fillStyle='#5a6478';ctx.fillText('← → ↑ ↓ 选择地图',CX,188);
   const tw=140,th=76,gap=10,perRow=6,rows2=2;
@@ -648,7 +686,7 @@ class Game{
   const gridBot=gridTop+rows2*rowH+14;
   // AI难度和数量（单人/协作模式）
   let aiCtrlH=0;
-  if(this.gameMode===0||this.gameMode===2){
+  if(this.gameMode===0||this.gameMode===2||this.gameMode===5){
    const ay=gridBot+4,diffNames=['简单','普通','困难'],diffColors=['#5dff70','#ffd23f','#ff5d5d'];
    // 难度按钮居中排列，间距更大
    const btnW=72,btnGap=12,diffTotalW=3*btnW+2*btnGap;
@@ -688,7 +726,10 @@ class Game{
   const ctrlY=gridBot+aiCtrlH+classH+8;
   const pw=320;
   if(this.gameMode===0)this.drawControlPanel(ctx,CX-pw/2,ctrlY,pw,'操作说明','#38bdf8',[['移动','W A S D'],['开火','F / 空格'],['暂停 P · 静音 M','']]);
-  else if(this.gameMode===2){
+  else if(this.gameMode===5){
+   this.drawControlPanel(ctx,CX-pw-10,ctrlY,pw,'驾驶员 (P1)','#38bdf8',[['移动','W A S D'],['走位','避弹 / 抢道具']]);
+   this.drawControlPanel(ctx,CX+10,ctrlY,pw,'炮手 (P2)','#ffd23f',[['瞄准','鼠标移动 (360°)'],['开火','鼠标左键 / 空格 / 回车']]);
+  }else if(this.gameMode===2){
    this.drawControlPanel(ctx,CX-pw-10,ctrlY,pw,'玩家 1','#38bdf8',[['移动','WASD'],['开火','F / 空格']]);
    this.drawControlPanel(ctx,CX+10,ctrlY,pw,'玩家 2','#34d399',[['移动','方向键'],['开火','L / 回车']]);
   }else{
@@ -707,8 +748,9 @@ class Game{
    ctx.font='12px '+FONT;ctx.fillStyle='#7a8599';ctx.fillText(POWER_TYPES[items[i]].desc,ix,iy+42);
   }
   const startY=iy+54,pa=clamp(0.5+Math.sin(t*3)*0.5,0,1);
+  const hasPad=Input.gamepads&&Input.gamepads[0]&&Input.gamepads[0].connected;
   ctx.globalAlpha=pa;ctx.font='bold 28px '+FONT;ctx.fillStyle='#ffd23f';
-  ctx.shadowColor='#ff8c42';ctx.shadowBlur=16;ctx.fillText('按 回车 开始战斗',CX,startY);ctx.shadowBlur=0;
+  ctx.shadowColor='#ff8c42';ctx.shadowBlur=16;ctx.fillText(hasPad?'按 A / 回车 开始战斗':'按 回车 开始战斗',CX,startY);ctx.shadowBlur=0;
   ctx.globalAlpha=1;ctx.font='14px '+FONT;ctx.fillStyle='#3a4255';ctx.fillText('M 静音  L 排行榜',CX,startY+26);
   // 排行榜覆盖层
   if(this.showLeaderboard)this.drawLeaderboard(ctx);
@@ -765,5 +807,62 @@ class Game{
   }
   ctx.font='14px '+FONT;ctx.fillStyle='#5a6478';
   ctx.fillText('L 关闭',CX,by+bh-20);
+ }
+ drawCrosshair(ctx,x,y){
+  // 1. 瞄准辅助：检测准星附近的敌方坦克
+  let lockedTarget=null;
+  for(const t of this.tanks){
+   if(t.alive&&t.team!==0){
+    if(dist(t.x,t.y,x,y)<55){
+     lockedTarget=t;
+     break;
+    }
+   }
+  }
+  const isLocked=!!lockedTarget;
+  const crossColor=isLocked?'#ff5555':'#38bdf8';
+
+  ctx.save();
+  // 锁定高亮框（如果锁定了敌方坦克）
+  if(isLocked){
+   ctx.strokeStyle='rgba(255,85,85,0.7)';
+   ctx.lineWidth=1.5;
+   const boxS=TANK_SIZE*0.9;
+   ctx.strokeRect(lockedTarget.x-boxS/2,lockedTarget.y-boxS/2,boxS,boxS);
+   ctx.fillStyle='rgba(255,85,85,0.15)';
+   ctx.fillRect(lockedTarget.x-boxS/2,lockedTarget.y-boxS/2,boxS,boxS);
+  }
+
+  ctx.strokeStyle=crossColor;
+  ctx.lineWidth=1.5;
+  const radius=isLocked?17:14;
+  // 外圈圆
+  ctx.beginPath();
+  ctx.arc(x,y,radius,0,7);
+  ctx.stroke();
+  // 十字准线
+  ctx.beginPath();
+  ctx.moveTo(x-22,y);ctx.lineTo(x-7,y);
+  ctx.moveTo(x+7,y);ctx.lineTo(x+22,y);
+  ctx.moveTo(x,y-22);ctx.lineTo(x,y-7);
+  ctx.moveTo(x,y+7);ctx.lineTo(x,y+22);
+  ctx.stroke();
+  // 中心指示点
+  ctx.fillStyle=isLocked?'#ff5555':'#ffd23f';
+  ctx.beginPath();
+  ctx.arc(x,y,2.5,0,7);
+  ctx.fill();
+
+  // 2. 命中确认标记 (Hitmarker: 中心红色/白色 '×')
+  if(this.hitmarker>0){
+   ctx.strokeStyle='#ff3333';
+   ctx.lineWidth=2;
+   const s=6;
+   ctx.beginPath();
+   ctx.moveTo(x-s,y-s);ctx.lineTo(x+s,y+s);
+   ctx.moveTo(x+s,y-s);ctx.lineTo(x-s,y+s);
+   ctx.stroke();
+  }
+  ctx.restore();
  }
 }

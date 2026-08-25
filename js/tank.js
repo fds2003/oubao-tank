@@ -1,9 +1,11 @@
 'use strict';
 // 核心战斗常量已集中至 utils.js（TANK_SIZE/BULLET_SPEED/HP_MAX 等）
 
-function drawTankBody(ctx,x,y,dirKey,color,tread,recoil){
+function drawTankBody(ctx,x,y,dirKey,color,tread,recoil,turretAngle){
  ctx.save();
  ctx.translate(x,y);
+ // 1. 底盘与履带（随车身移动朝向旋转）
+ ctx.save();
  ctx.rotate(DIRS[dirKey].a);
  ctx.fillStyle='#20242c';
  rr(ctx,-22,-20,44,10,4);ctx.fill();
@@ -21,6 +23,12 @@ function drawTankBody(ctx,x,y,dirKey,color,tread,recoil){
  rr(ctx,-16,-14,32,28,5);ctx.stroke();
  ctx.fillStyle='rgba(255,255,255,0.14)';
  ctx.fillRect(-14,-12,28,4);
+ ctx.restore();
+
+ // 2. 独立炮塔与主炮（随炮塔朝向 turretAngle 旋转）
+ const tAngle=turretAngle!==undefined?turretAngle:DIRS[dirKey].a;
+ ctx.save();
+ ctx.rotate(tAngle);
  ctx.fillStyle='#2c313b';
  ctx.fillRect(10,-3,Math.max(8,20-recoil),6);
  ctx.fillStyle=shade(color,1.25);
@@ -32,6 +40,8 @@ function drawTankBody(ctx,x,y,dirKey,color,tread,recoil){
  ctx.strokeStyle=shade(color,1.4);
  ctx.lineWidth=2.5;
  ctx.beginPath();ctx.moveTo(12,-6);ctx.lineTo(18,0);ctx.lineTo(12,6);ctx.stroke();
+ ctx.restore();
+
  ctx.restore();
 }
 function separateTanks(a,b){
@@ -61,6 +71,7 @@ class Tank{
   this.id=id;this.game=game;
   this.x=cfg.c*CELL+CELL/2;this.y=cfg.r*CELL+CELL/2;
   this.dirKey=cfg.face;
+  this.turretAngle=DIRS[cfg.face]?DIRS[cfg.face].a:0;
   this.color=cfg.color;this.name=cfg.name;this.keys=cfg.keys;
   // 阵营：0=玩家阵营(含协作队友), 1=敌方。双人对战(id=1)互为敌方
   this.team=(id===0||(id===1&&game.gameMode===2))?0:1;
@@ -100,6 +111,9 @@ class Tank{
   if(vert)this.x=target(this.x);else this.y=target(this.y);
   if(!this.fits(this.x,this.y)){this.x=sx;this.y=sy;}
   this.dirKey=want;
+  if(!(this.game&&this.game.gameMode===5&&this.isPlayer)){
+   this.turretAngle=DIRS[want].a;
+  }
  }
  tryMove(dx,dy){
   const nx=this.x+dx,ny=this.y+dy;
@@ -108,8 +122,9 @@ class Tank{
   return true;
  }
   fire(){
-   const d=this.dir;
-   const nx=this.x+d.x*(TANK_HALF+9),ny=this.y+d.y*(TANK_HALF+9);
+   const angle=this.turretAngle!==undefined?this.turretAngle:DIRS[this.dirKey].a;
+   const dirX=Math.cos(angle),dirY=Math.sin(angle);
+   const nx=this.x+dirX*(TANK_HALF+9),ny=this.y+dirY*(TANK_HALF+9);
    const heavy=this.buff.power>0,rapid=this.buff.rapid>0,scatter=this.buff.scatter>0,mega=this.buff.mega>0;
    const megaDmg=mega?1.2:1;
    const baseDmg=this.baseDamage||NORMAL_DMG;
@@ -122,10 +137,9 @@ class Tank{
     else if(this.game.comboSystem.hasCombo('ghost_combo'))comboDmgMult=1.2;
    }
    if(scatter){
-    const baseAngle=Math.atan2(d.y,d.x);
     const spread=[-0.35,0,0.35];
     for(const off of spread){
-     const a=baseAngle+off;
+     const a=angle+off;
      const bx=this.x+Math.cos(a)*(TANK_HALF+9);
      const by=this.y+Math.sin(a)*(TANK_HALF+9);
      const dirKey2=off===0?this.dirKey:(off<0?'left':'right');
@@ -134,16 +148,17 @@ class Tank{
     this.cool=RAPID_CD;this.recoil=4;
    }else{
     this.game.bullets.push(new Bullet(this,nx,ny,this.dirKey,{
-     damage:(heavy?HEAVY_DMG:baseDmg)*megaDmg*comboDmgMult,big:heavy||rapid
+     damage:(heavy?HEAVY_DMG:baseDmg)*megaDmg*comboDmgMult,big:heavy||rapid,angle:angle
     }));
     this.cool=rapid?RAPID_CD:baseCd;this.recoil=heavy?6:4;
    }
   this.stats.shots++;
   this.game.parts.muzzleBlast(nx,ny,this.dirKey,this.color,heavy||scatter);
   // 抛壳粒子：从炮管后方弹出金色弹壳
-  const shellX=this.x-d.x*12,shellY=this.y-d.y*12;
+  const shellX=this.x-dirX*12,shellY=this.y-dirY*12;
   this.game.parts.spark(shellX,shellY,'#daa520',1,80);
   this.game.addShake(heavy?3.5:1.8);
+  if(this.isPlayer)Input.vibrate(this.id,70,0.15,0.25);
   if(heavy)AudioSys.heavyShoot();else AudioSys.shoot();
  }
  takeDamage(dmg,attacker,game){
@@ -159,11 +174,15 @@ class Tank{
   }
    const real=Math.min(dmg,this.hp);
    this.hp-=real;
-   if(attacker&&attacker.alive){attacker.stats.hits++;attacker.stats.dmg+=real;}
+   if(attacker&&attacker.alive){
+    attacker.stats.hits++;attacker.stats.dmg+=real;
+    if(attacker.isPlayer&&game.triggerHitmarker)game.triggerHitmarker();
+   }
    const hitDir=attacker?{x:this.x-attacker.x,y:this.y-attacker.y}:null;
    game.parts.hitImpact(this.x,this.y,this.color,real,hitDir);
     game.parts.text(this.x,this.y-30,'-'+real,'#ff8585',18+real*0.06);
   AudioSys.thud();
+  if(this.isPlayer)Input.vibrate(this.id,200,0.4,0.7);
   // 玩家受伤时触发屏幕闪红
   if(this.id===0)game.triggerDamageFlash();
   if(this.hp<=0){
@@ -197,16 +216,42 @@ class Tank{
    return;
   }
     let want=null;let firing=false;
+    const padIdx=this.id<=1?this.id:0;
+    const padDir=this.isPlayer?Input.getGamepadDir(padIdx):null;
+    const padFire=this.isPlayer?Input.getGamepadFire(padIdx):false;
+    const padAim=this.isPlayer?Input.getGamepadAimAngle(padIdx):null;
     if(this.ai){
      this.ai.update(dt);
      const cmd=this.ai.getCommand();want=cmd.dir;firing=cmd.fire;
+   }else if(this.game&&this.game.gameMode===5&&this.isPlayer){
+    // 车长同乘模式：P1 键盘/手柄驾驶，P2 鼠标/手柄瞄准与开火
+    const k=this.keys;
+    if(Input.down(k.up))want='up';
+    else if(Input.down(k.down))want='down';
+    else if(Input.down(k.left))want='left';
+    else if(Input.down(k.right))want='right';
+    if(padDir)want=padDir;
+    if(padAim!==null){
+     this.turretAngle=padAim;
+    }else{
+     const canvasTankX=this.x+FIELD_X;
+     const canvasTankY=this.y+FIELD_Y;
+     const m=Input.mouse;
+     const dx=m.x-canvasTankX,dy=m.y-canvasTankY;
+     if(dx!==0||dy!==0){
+      this.turretAngle=Math.atan2(dy,dx);
+     }
+    }
+    firing=Input.down(...k.fire)||Input.down('Enter','KeyL')||Input.mouseDown()||padFire;
    }else{
     const k=this.keys;
     if(Input.down(k.up))want='up';
     else if(Input.down(k.down))want='down';
     else if(Input.down(k.left))want='left';
     else if(Input.down(k.right))want='right';
-    firing=Input.down(...k.fire);
+    if(padDir)want=padDir;
+    if(padAim!==null)this.turretAngle=padAim;
+    firing=Input.down(...k.fire)||padFire;
    }
    if(want&&want!==this.dirKey)this.turn(want);
    let moved=false;
@@ -246,13 +291,13 @@ class Tank{
    const tankScale=this.scale||1;
    const finalScale=megaOn?1.25:tankScale;
    ctx.translate(this.x,this.y);ctx.scale(finalScale,finalScale);
-   drawTankBody(ctx,0,0,this.dirKey,this.color,this.tread,this.recoil);
+   drawTankBody(ctx,0,0,this.dirKey,this.color,this.tread,this.recoil,this.turretAngle);
    ctx.restore();
   if(this.buff.ghost>0){
    ctx.save();ctx.globalAlpha=0.18;
-   drawTankBody(ctx,this.x-12,this.y-8,this.dirKey,this.color,this.tread,this.recoil);
+   drawTankBody(ctx,this.x-12,this.y-8,this.dirKey,this.color,this.tread,this.recoil,this.turretAngle);
    ctx.globalAlpha=0.12;
-   drawTankBody(ctx,this.x+12,this.y+8,this.dirKey,this.color,this.tread,this.recoil);
+   drawTankBody(ctx,this.x+12,this.y+8,this.dirKey,this.color,this.tread,this.recoil,this.turretAngle);
    ctx.restore();
    ctx.save();ctx.globalAlpha=0.25;
    ctx.strokeStyle='#c89dff';ctx.lineWidth=1.5;ctx.setLineDash([5,5]);ctx.lineDashOffset=-time*30;

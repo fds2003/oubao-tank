@@ -9,5 +9,6 @@ node_modules/
 tests/integration-results.json
 
 # 截图/临时文件
+test-screenshots/
 *.png
 *.log

@@ -7,7 +7,8 @@
     "test": "tests"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node tests/run-all-tests.js",
+    "test:browser": "node tests/test-browser-node.mjs"
   },
   "repository": {
     "type": "git",

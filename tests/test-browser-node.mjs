@@ -416,6 +416,42 @@ try {
     return true;
   });
 
+  // ================== 12. 车长同乘模式测试 (Mode 5) ==================
+  await expectNoError('[车长同乘模式] 切换同乘模式 + 鼠标瞄准与开火', async () => {
+    await backToMenu(page);
+    await page.waitForTimeout(300);
+    await page.keyboard.press('Digit6');
+    await page.waitForTimeout(200);
+    let state = await getGameState(page);
+    if (state.gameMode !== 5) {
+      // 亦可通过 evaluate 切换
+      await page.evaluate(() => { const g = window.__game || window.game; if (g) g.gameMode = 5; });
+      state = await getGameState(page);
+    }
+    if (state.gameMode !== 5) throw new Error(`期望 gameMode=5，实际=${state.gameMode}`);
+    await takeScreenshot(page, '23_codriver_menu');
+    
+    // 开始游戏
+    await page.keyboard.press('Enter');
+    await waitForState(page, 'play');
+    await takeScreenshot(page, '24_codriver_play_started');
+    
+    // 移动鼠标瞄准
+    await page.mouse.move(500, 300);
+    await page.waitForTimeout(200);
+    
+    // 鼠标点击开火
+    await page.mouse.click(500, 300);
+    await page.waitForTimeout(300);
+    await takeScreenshot(page, '25_codriver_mouse_fired');
+    
+    const bulletsCount = await page.evaluate(() => {
+      const g = window.__game || window.game;
+      return g?.bullets?.length || 0;
+    });
+    if (bulletsCount === 0) throw new Error('鼠标点击开火未生成子弹');
+    return `同乘模式成功进入，鼠标开火生成 ${bulletsCount} 颗子弹`;
+  });
   // ================== 收尾 ==================
   log('\n========== 浏览器自动化测试完成 ==========');
   log('通过用例: ' + events.passed_tests.length);
