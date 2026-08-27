@@ -17,6 +17,7 @@ const files = [
   'test-damage-flash.js',
   'test-tdd-bugfixes.js',
   'test-bgm.js',
+  'test-optimization.js',
   'integration-test.js'
 ];
 

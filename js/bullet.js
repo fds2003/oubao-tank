@@ -12,11 +12,13 @@ class Bullet{
   this.speed=opt.speed||BULLET_SPEED;
   this.damage=opt.damage;
   this.big=!!opt.big;
-  this.dead=false;
-  this.trailT=0;
+   this.dead=false;
+   this.ricTankId=-1;this.ricCool=0; // 跳弹后对该坦克的短暂命中豁免
+   this.trailT=0;
  }
- update(dt,game){
-  this.x+=this.dir.x*this.speed*dt;
+  update(dt,game){
+   if(this.ricCool>0)this.ricCool-=dt;
+   this.x+=this.dir.x*this.speed*dt;
   this.y+=this.dir.y*this.speed*dt;
   this.trailT+=dt;
   if(this.trailT>0.025){
@@ -69,31 +71,42 @@ class Bullet{
    }
    this.dead=true;return;
   }
-  for(const tk of game.tanks){
-    if(tk===this.owner||!tk.alive)continue;
-    if(tk.team===this.owner.team)continue;
-    if(Math.abs(this.x-tk.x)<CONFIG.BULLET_HIT_RANGE&&Math.abs(this.y-tk.y)<CONFIG.BULLET_HIT_RANGE){
-    // 物理系统计算伤害
-    const phys=game.physics.calculateDamage(tk,{x:this.x,y:this.y},this.damage);
-    if(phys.isRicochet){
-     game.parts.ring(tk.x,tk.y,'#c0c8d4',16,3,0.3);
-     game.parts.spark(tk.x,tk.y,'#e8edf5',8,120);
-     AudioSys.clink();
-     game.parts.text(tk.x,tk.y-40,'跳弹！','#c0c8d4',16);
-    }else if(phys.isBackHit){
-     game.parts.ring(tk.x,tk.y,'#ff5555',20,4,0.35);
-     game.parts.spark(tk.x,tk.y,'#ff8888',10,140);
-     AudioSys.thud();
-     game.parts.text(tk.x,tk.y-40,'暴击！','#ff5555',18);
+   for(const tk of game.tanks){
+     if(tk===this.owner||!tk.alive)continue;
+     if(tk.team===this.owner.team)continue;
+     if(this.ricTankId===tk.id&&this.ricCool>0)continue;
+     if(Math.abs(this.x-tk.x)<CONFIG.BULLET_HIT_RANGE&&Math.abs(this.y-tk.y)<CONFIG.BULLET_HIT_RANGE){
+     // 物理系统计算伤害
+     const phys=game.physics.calculateDamage(tk,{x:this.x,y:this.y},this.damage);
+     if(phys.isRicochet){
+      // 跳弹：减伤后沿装甲法线反弹，子弹不消失
+      const nx=this.x-tk.x,ny=this.y-tk.y,nl=Math.hypot(nx,ny)||1;
+      const n={x:nx/nl,y:ny/nl};
+      const refl=game.physics.getRicochetDir(this.dir,n);
+      this.dir=refl;
+      this.x+=refl.x*(CONFIG.BULLET_HIT_RANGE+2);
+      this.y+=refl.y*(CONFIG.BULLET_HIT_RANGE+2);
+      this.ricTankId=tk.id;this.ricCool=0.12;
+      tk.takeDamage(phys.damage,this.owner,game);
+      game.parts.ring(tk.x,tk.y,'#c0c8d4',16,3,0.3);
+      game.parts.spark(tk.x,tk.y,'#e8edf5',8,120);
+      AudioSys.clink();
+      game.parts.text(tk.x,tk.y-40,'跳弹！','#c0c8d4',16);
+      return;
+     }
+     if(phys.isBackHit){
+      game.parts.ring(tk.x,tk.y,'#ff5555',20,4,0.35);
+      game.parts.spark(tk.x,tk.y,'#ff8888',10,140);
+      AudioSys.thud();
+      game.parts.text(tk.x,tk.y-40,'暴击！','#ff5555',18);
+     }else if(phys.isTrackStun){
+      tk.buff.slow=1.5;
+      game.parts.text(tk.x,tk.y-55,'断履带！','#ffaa33',14);
+     }
+     tk.takeDamage(phys.damage,this.owner,game);
+     this.dead=true;return;
     }
-    if(phys.isTrackStun){
-     tk.buff.slow=1.5;tk.buffMax.slow=1.5;
-     game.parts.text(tk.x,tk.y-55,'断履带！','#ffaa33',14);
-    }
-    tk.takeDamage(phys.damage,this.owner,game);
-    this.dead=true;return;
    }
-  }
   // 护送装甲车：敌方(AI)子弹伤害运输车，玩家子弹不误伤己方
   if(game.gameMode===4&&game.convoyEscort&&game.convoyEscort.transport.alive&&this.owner.team===1){
    const tr=game.convoyEscort.transport;

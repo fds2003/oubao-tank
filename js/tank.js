@@ -87,10 +87,9 @@ class Tank{
   this.alive=true;this.ai=null;
   this.cool=0;this.recoil=0;this.tread=0;this.invuln=2;
   this.stats=this.game.matchStats[id];
-  this.buff={shield:0,speed:0,rapid:0,power:0,freeze:0,ghost:0,mega:0,scatter:0};
-  this.buffMax={shield:1,speed:1,rapid:1,power:1,freeze:1,ghost:1,mega:1,scatter:1};
+   this.buff={shield:0,speed:0,rapid:0,power:0,freeze:0,ghost:0,mega:0,scatter:0,slow:0};
   this.inGrass=false;
-  this._lastBuffKeys=new Set();
+   this._lastBuffKeys=[];
  }
  get dir(){return DIRS[this.dirKey];}
  get face(){return this.dirKey;}
@@ -201,15 +200,15 @@ class Tank{
   this.cool-=dt;
   this.recoil=Math.max(0,this.recoil-dt*26);
   // 同步组合系统：添加新buff / 移除过期buff
-  if(this.game.comboSystem){
-   const curKeys=new Set();
-   for(const k in this.buff)if(this.buff[k]>0)curKeys.add(k);
-   for(const k of this._lastBuffKeys){
-    if(!curKeys.has(k))this.game.comboSystem.removeBuff(k);
+   if(this.game.comboSystem){
+    const curKeys=[];
+    for(const k in this.buff)if(this.buff[k]>0)curKeys.push(k);
+    for(const k of this._lastBuffKeys){
+     if(curKeys.indexOf(k)===-1)this.game.comboSystem.removeBuff(k);
+    }
+    for(const k of curKeys)this.game.comboSystem.addBuff(k,this.buff[k]);
+    this._lastBuffKeys=curKeys;
    }
-   for(const k of curKeys)this.game.comboSystem.addBuff(k,this.buff[k]);
-   this._lastBuffKeys=curKeys;
-  }
   if(!this.alive)return;
   if(this.buff.freeze>0){
    if(chance(dt*7))this.game.parts.snow(this.x,this.y);
@@ -278,6 +277,7 @@ class Tank{
   draw(ctx,time,dt){
    if(!this.alive)return;
    ctx.save();
+   ctx.globalAlpha=1;
    // 草丛隐蔽：在草丛中半透明
    if(this.game&&this.game.world){
     const gc=Math.floor(this.x/CELL),gr=Math.floor(this.y/CELL);

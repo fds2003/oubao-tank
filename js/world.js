@@ -1,29 +1,61 @@
 'use strict';
 class World{
- constructor(def){
-  Object.assign(this,buildMap(def));
-  this.grassCells=[];
-  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
-   if(this.grid[r][c]==='G')this.grassCells.push({c,r});
+  constructor(def){
+   Object.assign(this,buildMap(def));
+   this.grassCells=[];
+   for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+    if(this.grid[r][c]==='G')this.grassCells.push({c,r});
+   }
+   // 离屏缓存静态地形（棋盘底+砖墙+钢墙），只在构造与水砖销毁时更新，每帧仅 blit + 画少量水面
+   if(typeof document!=='undefined'&&document.createElement){
+    try{
+     this._bg=document.createElement('canvas');
+     this._bg.width=FIELD_W;this._bg.height=FIELD_H;
+     this._renderStatic(this._bg.getContext('2d'));
+    }catch(e){this._bg=null;}
+   }
   }
- }
  inB(c,r){return c>=0&&c<COLS&&r>=0&&r<ROWS;}
  at(c,r){return this.inB(c,r)?this.grid[r][c]:'#';}
  set(c,r,ch){if(this.inB(c,r))this.grid[r][c]=ch;}
- solidTank(c,r){const t=this.at(c,r);return t==='B'||t==='S'||t==='W';}
- destroyBrick(c,r){this.set(c,r,'.');}
- drawBase(ctx,time){
-  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+  solidTank(c,r){const t=this.at(c,r);return t==='B'||t==='S'||t==='W';}
+  destroyBrick(c,r){
+   this.set(c,r,'.');
+   if(this._bg){this._eraseCell(this._bg.getContext('2d'),c,r);}
+  }
+  _eraseCell(ctx,c,r){
    ctx.fillStyle=(c+r)%2?'#181c25':'#141821';
    ctx.fillRect(c*CELL,r*CELL,CELL,CELL);
   }
-  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
-   const t=this.grid[r][c],x=c*CELL,y=r*CELL;
-   if(t==='B')this.drawBrick(ctx,x,y,c,r);
-   else if(t==='S')this.drawSteel(ctx,x,y);
-   else if(t==='W')this.drawWater(ctx,x,y,time,c,r);
+  _renderStatic(ctx){
+   for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+    ctx.fillStyle=(c+r)%2?'#181c25':'#141821';
+    ctx.fillRect(c*CELL,r*CELL,CELL,CELL);
+   }
+   for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+    const t=this.grid[r][c],x=c*CELL,y=r*CELL;
+    if(t==='B')this.drawBrick(ctx,x,y,c,r);
+    else if(t==='S')this.drawSteel(ctx,x,y);
+   }
   }
- }
+  drawBase(ctx,time){
+   if(this._bg){
+    ctx.drawImage(this._bg,0,0);
+   }else{
+    for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+     ctx.fillStyle=(c+r)%2?'#181c25':'#141821';
+     ctx.fillRect(c*CELL,r*CELL,CELL,CELL);
+    }
+    for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+     const t=this.grid[r][c],x=c*CELL,y=r*CELL;
+     if(t==='B')this.drawBrick(ctx,x,y,c,r);
+     else if(t==='S')this.drawSteel(ctx,x,y);
+    }
+   }
+   for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+    if(this.grid[r][c]==='W')this.drawWater(ctx,c*CELL,r*CELL,time,c,r);
+   }
+  }
  drawBrick(ctx,x,y,c,r){
   ctx.fillStyle='#a04a26';
   ctx.fillRect(x,y,CELL,CELL);

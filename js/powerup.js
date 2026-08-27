@@ -13,8 +13,8 @@ const POWER_TYPES={
  emp:{color:'#22eeff',name:'EMP',desc:'摧毁护盾+减速'}
 };
 const POWER_POOL=['shield','speed','heal','rapid','freeze','power','speed','heal','ghost','mine','mega','scatter','emp'];
-function drawPowerIcon(ctx,type,s){
- const c=POWER_TYPES[type].color;
+ function drawPowerIcon(ctx,type,s){
+  const c=POWER_TYPES[type]?POWER_TYPES[type].color:'#ffaa33';
  ctx.save();
  ctx.strokeStyle=c;ctx.fillStyle=c;ctx.lineWidth=2.5;ctx.lineJoin='round';ctx.lineCap='round';
  if(type==='shield'){
@@ -91,17 +91,22 @@ function drawPowerIcon(ctx,type,s){
    ctx.beginPath();ctx.moveTo(s*0.5,0);ctx.lineTo(-s*0.3,-s*0.25);ctx.lineTo(-s*0.3,s*0.25);
    ctx.closePath();ctx.fill();ctx.restore();
   }
- }else if(type==='emp'){
-  ctx.lineWidth=2.5;
-  for(let i=0;i<3;i++){
-   const r=s*(0.35+i*0.22);
+  }else if(type==='emp'){
+   ctx.lineWidth=2.5;
+   for(let i=0;i<3;i++){
+    const r=s*(0.35+i*0.22);
+    ctx.beginPath();
+    ctx.arc(0,0,r,-Math.PI*0.3+i*0.2,Math.PI*0.3+i*0.2);
+    ctx.stroke();
+   }
+   ctx.beginPath();ctx.arc(0,0,s*0.18,0,7);ctx.fill();
+  }else if(type==='slow'){
    ctx.beginPath();
-   ctx.arc(0,0,r,-Math.PI*0.3+i*0.2,Math.PI*0.3+i*0.2);
+   ctx.moveTo(0,-s*0.6);ctx.lineTo(0,s*0.2);
+   ctx.moveTo(-s*0.4,s*0.2);ctx.lineTo(0,s*0.6);ctx.lineTo(s*0.4,s*0.2);
    ctx.stroke();
   }
-  ctx.beginPath();ctx.arc(0,0,s*0.18,0,7);ctx.fill();
- }
- ctx.restore();
+  ctx.restore();
 }
 class PowerUp{
  constructor(x,y,type){
@@ -191,13 +196,13 @@ function applyPower(game,tank,type){
    for(const t of game.tanks){
     if(t===tank||!t.alive)continue;
     if(t.team===tank.team)continue;
-    t.buff.freeze=dur;t.buffMax.freeze=dur;
+     t.buff.freeze=dur;
    }
    AudioSys.freeze();
    game.parts.text(tank.x,tank.y-30,'全屏冰冻！','#9ad8ff');
   }else{
    const other=game.tanks[1-tank.id];
-   other.buff.freeze=2.2;other.buffMax.freeze=2.2;
+    other.buff.freeze=2.2;
    AudioSys.freeze();
    game.parts.spark(other.x,other.y,'#cfeaff',12,150);
    game.parts.text(other.x,other.y-30,'冰冻！',info.color);
@@ -218,7 +223,7 @@ function applyPower(game,tank,type){
   return;
  }
  if(type==='mega'){   tank.hp=Math.min((tank.maxHp||HP_MAX)+CONFIG.MEGA_HP_BONUS,tank.hp+CONFIG.MEGA_HP_BONUS);
-  tank.buff.mega=CONFIG.MEGA_DURATION;tank.buffMax.mega=CONFIG.MEGA_DURATION;
+   tank.buff.mega=CONFIG.MEGA_DURATION;
   AudioSys.pickup();
   game.parts.ring(tank.x,tank.y,info.color,36,3,0.35);
   game.parts.star(tank.x,tank.y,info.color,6,8,180,0.25);
@@ -231,8 +236,8 @@ function applyPower(game,tank,type){
     if(t===tank||!t.alive)continue;
     if(t.team===tank.team)continue;
     if(t.buff.shield>0){t.buff.shield=0;count++;}
-    t.buff.speed=0;t.buffMax.speed=0;
-    t.buff.slow=CONFIG.EMP_SLOW_DURATION;t.buffMax.slow=CONFIG.EMP_SLOW_DURATION;
+     t.buff.speed=0;
+     t.buff.slow=CONFIG.EMP_SLOW_DURATION;
    }
   AudioSys.emp();
   game.parts.ring(tank.x,tank.y,'#22eeff',60,4,0.45);
@@ -241,7 +246,7 @@ function applyPower(game,tank,type){
   return;
  }
  if(type==='shield'||type==='speed'||type==='rapid'||type==='power'||type==='ghost'||type==='scatter'){
-  tank.buff[type]=CONFIG.POWERUP_DURATION;tank.buffMax[type]=CONFIG.POWERUP_DURATION;
+   tank.buff[type]=CONFIG.POWERUP_DURATION;
   AudioSys.pickup();
   game.parts.spark(tank.x,tank.y,info.color,10,140);
   game.parts.text(tank.x,tank.y-30,info.name+'！',info.color);

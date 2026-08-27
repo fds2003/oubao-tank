@@ -63,6 +63,10 @@ const CONFIG={
  TRACK_MARK_CHANCE:0.15,TRACK_MARK_LIFE:6,TRACK_MARK_ALPHA:0.25, // 履带压痕
  SMOKE_HEAVY_BELOW:0.2,SMOKE_LIGHT_BELOW:0.5, // 战损冒烟HP阈值（重烟/轻烟）
  TRANSPORT_HIT_HALF_W:22,TRANSPORT_HIT_HALF_H:14, // 运输车碰撞半宽/半高
- GAMEPAD_DEADZONE:0.25, // 手柄摇杆死区阈值
- WIN_ROUNDS:5
+  GAMEPAD_DEADZONE:0.25, // 手柄摇杆死区阈值
+  SHAKE_MAX:10,          // 震屏最大强度
+  DAMAGE_FLASH_TIME:0.3, // 受伤闪红持续时间
+  HITMARKER_TIME:0.18,   // 命中标记持续时间
+  COUNTDOWN_TIME:3,      // 回合倒计时秒数
+  WIN_ROUNDS:5
 };

@@ -7,6 +7,8 @@ const AI_COLORS_COOP=['#ff8c42','#c084fc','#f472b6','#facc15','#fb923c','#a78bfa
 const AI_NAMES=['AI·烈焰','AI·幻紫','AI·翡翠','AI·蔷薇','AI·金芒','AI·炽阳','AI·星辉','AI·寒冰','AI·魅影','AI·翠芽'];
 const AI_NAMES_COOP=['AI·烈焰','AI·幻紫','AI·蔷薇','AI·金芒','AI·炽阳','AI·星辉','AI·寒冰','AI·魅影','AI·翠芽','AI·苍穹'];
 const SAFE_OFFSETS=[{c:0,r:-1},{c:0,r:1},{c:-1,r:0},{c:1,r:0},{c:0,r:-2},{c:0,r:2},{c:-1,r:-1},{c:1,r:1},{c:2,r:0},{c:-2,r:0}];
+// 原地压缩数组（避免每帧重新分配，消除 GC 抖动）；pred 返回 true 表示保留
+function filterInPlace(arr,pred){let w=0;for(let i=0;i<arr.length;i++)if(pred(arr[i]))arr[w++]=arr[i];arr.length=w;}
 const DIFF_LIST=['easy','normal','hard'];
 
 class Game{
@@ -16,7 +18,9 @@ class Game{
   this.state='menu';
   this.mapIdx=0;
   this.menuT=0;this.time=0;
-  this.previews=MAP_DEFS.map(buildMap);
+   this.previews=MAP_DEFS.map(buildMap);
+   // 预渲染 12 张地图预览到离屏画布（菜单每帧 blit，避免 12×286 次 fillRect）
+   try{this._menuPreviews=this.previews.map(pv=>this._renderPreviewCanvas(pv));}catch(e){this._menuPreviews=null;}
   this.scores=[0,0];this.roundNum=1;
   this.matchStats=[{shots:0,hits:0,dmg:0},{shots:0,hits:0,dmg:0}];
   this.world=null;this.tanks=[];this.bullets=[];this.powerups=[];this.mines=[];
@@ -54,9 +58,9 @@ class Game{
   Input.endFrame();
   requestAnimationFrame(t=>this.loop(t));
  }
- addShake(v){this.shake=Math.min(10,Math.max(this.shake,v));}
- triggerDamageFlash(){this.damageFlash=0.3;}
- triggerHitmarker(){this.hitmarker=0.18;}
+  addShake(v){this.shake=Math.min(CONFIG.SHAKE_MAX,Math.max(this.shake,v));}
+  triggerDamageFlash(){this.damageFlash=CONFIG.DAMAGE_FLASH_TIME;}
+  triggerHitmarker(){this.hitmarker=CONFIG.HITMARKER_TIME;}
  getMouseFieldPos(){return{x:Input.mouse.x-FIELD_X,y:Input.mouse.y-FIELD_Y};}
  autoPause(){if(this.state==='play')this.state='pause';}
  _recordMatchResult(){
@@ -193,7 +197,7 @@ class Game{
   this.bullets=[];this.powerups=[];this.mines=[];this.parts.clear();
   this.trackMarks=[];
   this.puTimer=rand(CONFIG.POWERUP_INITIAL_MIN,CONFIG.POWERUP_INITIAL_MAX);
-  this.state='countdown';this.cd=3;this.cdLast=4;
+    this.state='countdown';this.cd=CONFIG.COUNTDOWN_TIME;this.cdLast=4;
  }
  trySpawnPowerup(){
   for(let i=0;i<50;i++){
@@ -210,17 +214,17 @@ class Game{
  updatePlay(dt){
   for(const t of this.tanks)t.update(dt);
   for(let i=0;i<this.tanks.length;i++)for(let j=i+1;j<this.tanks.length;j++)separateTanks(this.tanks[i],this.tanks[j]);
-  for(const b of this.bullets)b.update(dt,this);
-  this.bullets=this.bullets.filter(b=>!b.dead);
-  for(const p of this.powerups)p.update(dt);
-  this.powerups=this.powerups.filter(p=>!p.expired());
-  for(const m of this.mines)m.update(dt);
-  this.mines=this.mines.filter(m=>!m.dead);
+   for(const b of this.bullets)b.update(dt,this);
+   filterInPlace(this.bullets,b=>!b.dead);
+   for(const p of this.powerups)p.update(dt);
+   filterInPlace(this.powerups,p=>!p.expired());
+   for(const m of this.mines)m.update(dt);
+   filterInPlace(this.mines,m=>!m.dead);
   this.puTimer-=dt;
   if(this.puTimer<=0){if(this.powerups.length<3)this.trySpawnPowerup();  this.puTimer=rand(CONFIG.POWERUP_INTERVAL_MIN,CONFIG.POWERUP_INTERVAL_MAX);}
   for(const p of this.powerups)for(const t of this.tanks)
-   if(!p.picked&&t.alive&&dist(p.x,p.y,t.x,t.y)<CONFIG.POWERUP_PICKUP_RANGE){p.picked=true;applyPower(this,t,p.type);if(t.isPlayer)this._checkCombo(p.type);if(t.collectedPowerups&&t.collectedPowerups.indexOf(p.type)===-1)t.collectedPowerups.push(p.type);}
-  this.powerups=this.powerups.filter(p=>!p.picked);
+    if(!p.picked&&t.alive&&dist(p.x,p.y,t.x,t.y)<CONFIG.POWERUP_PICKUP_RANGE){p.picked=true;applyPower(this,t,p.type);if(t.isPlayer)this._checkCombo(p.type);if(t.collectedPowerups&&t.collectedPowerups.indexOf(p.type)===-1)t.collectedPowerups.push(p.type);}
+   filterInPlace(this.powerups,p=>!p.picked);
   if(this.gameMode===0||this.gameMode===3||this.gameMode===4){
    const pDead=!this.tanks[0].alive,aiDead=this.tanks.slice(1).every(t=>!t.alive);
    // 特殊模式额外胜利条件
@@ -331,7 +335,7 @@ class Game{
    case'play':this.updatePlay(dt);if(Input.pressed('KeyP','Escape')){this.state='pause';this.bgm.pause();}break;
    case'round':
     this.bannerT-=dt;
-    for(const b of this.bullets)b.update(dt,this);this.bullets=this.bullets.filter(b=>!b.dead);
+    for(const b of this.bullets)b.update(dt,this);filterInPlace(this.bullets,b=>!b.dead);
     if(this.bannerT<=0){
      if(this.roundWinner>=0&&this.scores[this.roundWinner]>=WIN_ROUNDS){this.matchWinner=this.roundWinner;this.state='match';AudioSys.win();this._recordMatchResult();}
      else{this.roundNum++;this.startRound();}
@@ -360,7 +364,7 @@ class Game{
   if(this.state==='match')this.drawMatchEnd(ctx);
   if(this.state==='pause')this.drawPause(ctx);
   if(this.fade<0.99){ctx.fillStyle='rgba(11,13,18,'+(1-this.fade)+')';ctx.fillRect(0,0,VIEW_W,VIEW_H);}
-  if(this.damageFlash>0){ctx.save();ctx.globalAlpha=this.damageFlash/0.3*0.4;ctx.fillStyle='rgba(255,50,50,1)';ctx.fillRect(0,0,VIEW_W,VIEW_H);ctx.restore();}
+   if(this.damageFlash>0){ctx.save();ctx.globalAlpha=this.damageFlash/CONFIG.DAMAGE_FLASH_TIME*0.4;ctx.fillStyle='rgba(255,50,50,1)';ctx.fillRect(0,0,VIEW_W,VIEW_H);ctx.restore();}
   // 成就通知
   for(let i=this.achievementNotify.length-1;i>=0;i--){
    const n=this.achievementNotify[i];
@@ -395,6 +399,7 @@ class Game{
   ctx.translate(FIELD_X+sx,FIELD_Y+sy);
   ctx.beginPath();ctx.rect(0,0,FIELD_W,FIELD_H);ctx.clip();
   this.world.drawBase(ctx,this.time);
+  if(this.gameMode===3&&this.baseDefense)this.baseDefense.draw(ctx,this.time);
   // 绘制履带压痕
   if(!this.trackMarks)this.trackMarks=[];
   for(const t of this.tanks){
@@ -414,6 +419,7 @@ class Game{
    tm.life-=(this.dt&&this.dt>0)?this.dt:0.016;
    if(tm.life<=0)this.trackMarks.splice(i,1);
   }
+  ctx.globalAlpha=1;
   if(this.gameMode===4&&this.convoyEscort)this.convoyEscort.draw(ctx,this.time);
   for(const m of this.mines)m.draw(ctx);
   for(const p of this.powerups)p.draw(ctx);
@@ -514,9 +520,11 @@ class Game{
   if(!list.length)return;
   ctx.save();ctx.font='bold 13px '+FONT;ctx.textBaseline='middle';
   let cx=x;
-  for(const k of list){
-   const pt=POWER_TYPES[k];if(!pt)continue; // slow 由断履带/EMP 写入，非道具类型
-   const c=pt.color,label=Math.ceil(tank.buff[k])+'s';
+   for(const k of list){
+    let pt=POWER_TYPES[k];
+    if(k==='slow')pt={color:'#ffaa33',name:'减速'}; // slow 由断履带/EMP 写入，非道具类型
+    if(!pt)continue;
+    const c=pt.color,label=Math.ceil(tank.buff[k])+'s';
    const wTxt=ctx.measureText(label).width,total=26+6+wTxt;
    const bx=rtl?cx-total:cx;
    ctx.fillStyle='rgba(10,14,22,0.88)';rr(ctx,bx,y-12,total,24,6);ctx.fill();
@@ -662,21 +670,25 @@ class Game{
    ctx.fillText(modeNames[m],bx+btnW/2,128+btnH/2);
   }   ctx.font='16px '+FONT;ctx.fillStyle='#5a6478';ctx.fillText('← → ↑ ↓ 选择地图',CX,188);
   const tw=140,th=76,gap=10,perRow=6,rows2=2;
-  const gridW=perRow*tw+(perRow-1)*gap,gridX=CX-gridW/2,rowH=th+22,gridTop=206;
-  for(let i=0;i<MAP_DEFS.length;i++){
-   const on=i===this.mapIdx,col=i%perRow,row=Math.floor(i/perRow);
-   const ox=gridX+col*(tw+gap),oy=gridTop+row*rowH+(on?-3:0);
-   ctx.save();ctx.globalAlpha=on?1:0.45;
+   const gridW=perRow*tw+(perRow-1)*gap,gridX=CX-gridW/2,rowH=th+22,gridTop=206;
+   for(let i=0;i<MAP_DEFS.length;i++){
+    const on=i===this.mapIdx,col=i%perRow,row=Math.floor(i/perRow);
+    const ox=gridX+col*(tw+gap),oy=gridTop+row*rowH+(on?-3:0);
+    ctx.save();ctx.globalAlpha=on?1:0.45;
     const pv=this.previews[i],sc=Math.min(tw/(COLS*8),th/(ROWS*8));
-   for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
-    const ch=pv.grid[r][c];let col2='#121620';
-    if(ch==='B')col2='#8a3e1e';else if(ch==='S')col2='#5a6270';
-    else if(ch==='W')col2='#103050';else if(ch==='G')col2='#1e6830';
-    ctx.fillStyle=col2;ctx.fillRect(ox+c*sc*8,oy+r*sc*8,sc*8+0.5,sc*8+0.5);
-   }
-   ctx.fillStyle='#38bdf8';ctx.beginPath();ctx.arc(ox+pv.spawns[0].c*sc*8+sc*4,oy+pv.spawns[0].r*sc*8+sc*4,3,0,7);ctx.fill();
-   ctx.fillStyle='#ff8c42';ctx.beginPath();ctx.arc(ox+pv.spawns[1].c*sc*8+sc*4,oy+pv.spawns[1].r*sc*8+sc*4,3,0,7);ctx.fill();
-   ctx.restore();
+    if(this._menuPreviews&&this._menuPreviews[i]){
+     ctx.drawImage(this._menuPreviews[i],ox,oy,tw,th);
+    }else{
+     for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+      const ch=pv.grid[r][c];let col2='#121620';
+      if(ch==='B')col2='#8a3e1e';else if(ch==='S')col2='#5a6270';
+      else if(ch==='W')col2='#103050';else if(ch==='G')col2='#1e6830';
+      ctx.fillStyle=col2;ctx.fillRect(ox+c*sc*8,oy+r*sc*8,sc*8+0.5,sc*8+0.5);
+     }
+    }
+    ctx.fillStyle='#38bdf8';ctx.beginPath();ctx.arc(ox+pv.spawns[0].c*sc*8+sc*4,oy+pv.spawns[0].r*sc*8+sc*4,3,0,7);ctx.fill();
+    ctx.fillStyle='#ff8c42';ctx.beginPath();ctx.arc(ox+pv.spawns[1].c*sc*8+sc*4,oy+pv.spawns[1].r*sc*8+sc*4,3,0,7);ctx.fill();
+    ctx.restore();
    if(on){ctx.shadowColor='#ffd23f';ctx.shadowBlur=12;}
    ctx.strokeStyle=on?'#ffd23f':'#1e2636';ctx.lineWidth=on?2:1;
    ctx.strokeRect(ox-2,oy-2,tw+4,th+4);ctx.shadowBlur=0;
@@ -755,9 +767,25 @@ class Game{
   // 排行榜覆盖层
   if(this.showLeaderboard)this.drawLeaderboard(ctx);
  }
- drawControlPanel(ctx,x,y,w,title,color,rows){
-  const h=28+rows.length*26+10;
-  ctx.fillStyle='rgba(12,16,24,0.92)';rr(ctx,x,y,w,h,10);ctx.fill();
+  _renderPreviewCanvas(pv){
+   if(typeof document==='undefined'||!document.createElement)return null;
+   try{
+    const tw=140,th=76;
+    const sc=Math.min(tw/(COLS*8),th/(ROWS*8));
+    const cv=document.createElement('canvas');cv.width=tw;cv.height=th;
+    const c=cv.getContext('2d');
+    for(let r=0;r<ROWS;r++)for(let cc=0;cc<COLS;cc++){
+     const ch=pv.grid[r][cc];let col2='#121620';
+     if(ch==='B')col2='#8a3e1e';else if(ch==='S')col2='#5a6270';
+     else if(ch==='W')col2='#103050';else if(ch==='G')col2='#1e6830';
+     c.fillStyle=col2;c.fillRect(cc*sc*8,r*sc*8,sc*8+0.5,sc*8+0.5);
+    }
+    return cv;
+   }catch(e){return null;}
+  }
+  drawControlPanel(ctx,x,y,w,title,color,rows){
+   const h=28+rows.length*26+10;
+   ctx.fillStyle='rgba(12,16,24,0.92)';rr(ctx,x,y,w,h,10);ctx.fill();
   ctx.strokeStyle=color;ctx.lineWidth=1.5;rr(ctx,x,y,w,h,10);ctx.stroke();
   ctx.textAlign='left';ctx.textBaseline='alphabetic';
   ctx.font='bold 18px '+FONT;ctx.fillStyle=color;ctx.fillText(title,x+18,y+28);
