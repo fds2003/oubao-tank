@@ -2,7 +2,6 @@
   "name": "oubao-tankgame",
   "version": "1.0.0",
   "description": "本地多人坦克对战游戏，纯 HTML5/Canvas/JS 实现，零外部依赖。",
-  "main": "index.js",
   "directories": {
     "test": "tests"
   },
