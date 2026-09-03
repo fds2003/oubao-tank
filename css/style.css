@@ -57,3 +57,20 @@ canvas{
 .touch-ui.duo .fire-btn[data-player="0"]{right:auto;left:156px;bottom:68px}
 .touch-ui.duo .joy[data-player="1"]{display:block;right:16px;bottom:22px}
 .touch-ui.duo .fire-btn[data-player="1"]{display:block;right:156px;bottom:68px}
+
+/* ===== 菜单「开始游戏」按钮（触屏专用） ===== */
+.menu-btn{
+ position:fixed;left:50%;bottom:9vh;z-index:1000;
+ transform:translateX(-50%);
+ display:none;pointer-events:auto;
+ padding:18px 56px;border-radius:44px;
+ font-size:20px;font-weight:bold;letter-spacing:2px;
+ color:#0b0d12;font-family:'Segoe UI','Microsoft YaHei',sans-serif;
+ background:linear-gradient(180deg,#ffe27a,#ffb020);
+ border:2px solid #ff8c42;
+ box-shadow:0 6px 24px rgba(255,140,66,0.5);
+ touch-action:manipulation;user-select:none;
+ -webkit-tap-highlight-color:transparent;
+}
+.menu-btn.show{display:block}
+.menu-btn:active{transform:translateX(-50%) scale(0.96)}

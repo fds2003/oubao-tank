@@ -135,6 +135,7 @@ const Touch = {
     const duo = g && (g.gameMode === 1 || g.gameMode === 2);
     this.root.classList.toggle('show', playing);
     this.root.classList.toggle('duo', duo);
+    if (this.menuBtn) this.menuBtn.classList.toggle('show', g && g.state === 'menu');
     if (!playing) {
       for (let p = 0; p < 2; p++) { this._setDir(p, null); this._setFire(p, false); }
     }
