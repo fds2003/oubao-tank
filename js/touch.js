@@ -46,6 +46,14 @@ const Touch = {
       this._groups.push({ player: p, joy, base, knob, fire, stickId: null, fireId: null });
     }
     document.body.appendChild(this.root);
+
+    // 菜单「开始游戏」按钮：触屏设备无键盘，需要显式入口（一键开局/跳过引导）
+    const btn = document.createElement('div');
+    btn.className = 'menu-btn';
+    btn.textContent = '开始游戏';
+    btn.addEventListener('click', () => this._onMenuTap());
+    document.body.appendChild(btn);
+    this.menuBtn = btn;
   },
 
   _bind() {
@@ -125,6 +133,18 @@ const Touch = {
   _setFire(player, on) {
     const k = this.keys[player];
     if (on) Input.held.add(k.fire); else Input.held.delete(k.fire);
+  },
+
+  // 菜单层：点击「开始游戏」——先跳过键盘向引导（若首次），再直接开局
+  _onMenuTap() {
+    const g = this.game;
+    if (!g) return;
+    AudioSys.ensure();
+    if (g.tutorial && g.tutorial.state === 'active') g.tutorial.skip();
+    if (g.state === 'menu' && !g.showLeaderboard) {
+      g.startMatch(g.mapIdx);
+      g.bgm.play('battle');
+    }
   },
 
   // 依据游戏状态/模式，显示或隐藏摇杆、切换单双人布局
