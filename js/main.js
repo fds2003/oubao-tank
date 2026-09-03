@@ -10,6 +10,7 @@ window.addEventListener('DOMContentLoaded',()=>{
  Input.init();
  const game=new Game(canvas.getContext('2d'),dpr);
  window.__game=game; // 调试/自动化测试钩子
+ Touch.init(game); // 触屏虚拟摇杆（非触屏设备自动跳过）
  const blurHandler=()=>game.autoPause();
  window.addEventListener('blur',blurHandler);
  game.start();

@@ -12,4 +12,48 @@ canvas{
  object-fit:contain;
  background:#0b0d12;
  outline:none;
+ touch-action:manipulation;
 }
+
+/* ===== 触屏虚拟摇杆 ===== */
+.touch-ui{
+ position:fixed;inset:0;z-index:999;
+ pointer-events:none;display:none;
+}
+.touch-ui.show{display:block}
+.touch-ui .joy,.touch-ui .fire-btn{
+ position:absolute;pointer-events:auto;touch-action:none;
+ -webkit-user-select:none;user-select:none;
+}
+.joy{width:128px;height:128px}
+.joy-base{
+ position:absolute;inset:0;border-radius:50%;
+ background:rgba(255,255,255,0.07);
+ border:2px solid rgba(255,255,255,0.28);
+}
+.joy-knob{
+ position:absolute;left:50%;top:50%;width:54px;height:54px;
+ margin:-27px 0 0 -27px;border-radius:50%;
+ background:rgba(122,164,222,0.55);
+ border:2px solid rgba(255,255,255,0.6);
+ box-shadow:0 0 10px rgba(0,0,0,0.4);
+}
+.fire-btn{
+ width:92px;height:92px;border-radius:50%;
+ display:flex;align-items:center;justify-content:center;
+ font-size:17px;color:#fff;font-family:'Segoe UI','Microsoft YaHei',sans-serif;
+ background:rgba(255,90,90,0.35);
+ border:2px solid rgba(255,140,140,0.75);
+}
+.fire-btn.active{background:rgba(255,60,60,0.75)}
+
+/* 单人：P1 摇杆左下、开火右下（双手分工） */
+.joy[data-player="0"]{left:22px;bottom:22px}
+.fire-btn[data-player="0"]{right:26px;bottom:44px}
+.joy[data-player="1"],.fire-btn[data-player="1"]{display:none}
+
+/* 双人：P1 左侧一套、P2 右侧一套（各占半边） */
+.touch-ui.duo .joy[data-player="0"]{left:16px;bottom:22px}
+.touch-ui.duo .fire-btn[data-player="0"]{right:auto;left:156px;bottom:68px}
+.touch-ui.duo .joy[data-player="1"]{display:block;right:16px;bottom:22px}
+.touch-ui.duo .fire-btn[data-player="1"]{display:block;right:156px;bottom:68px}
