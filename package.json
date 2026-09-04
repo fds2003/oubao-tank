@@ -7,7 +7,9 @@
   },
   "scripts": {
     "test": "node tests/run-all-tests.js",
-    "test:browser": "node tests/test-browser-node.mjs"
+    "test:browser": "node tests/test-browser-node.mjs",
+    "test:release": "node tests/test-release-verification.mjs",
+    "test:release:all": "node tests/test-release-verification.mjs --all"
   },
   "repository": {
     "type": "git",

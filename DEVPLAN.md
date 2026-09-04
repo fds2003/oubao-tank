@@ -213,15 +213,17 @@ js/
 - 原有53个测试 + v1.2新增91个测试 + v1.3新增66个测试 = **210个测试用例**
 - 全部通过
 
-### 兼容性测试
-- Chrome/Firefox/Safari/Edge 最新版
-- 移动端浏览器（基础兼容）
-- 不同分辨率（1080p/1440p/4K）
+### 兼容性测试 ✅ Chromium 部分完成（2026-09-04 实测）
+- Chrome 152（headless）五种分辨率全部通过：1280×720 / 1280×1024(5:4 letterbox) / 1920×1080 / 2560×1440 / 3840×2160
+- 各分辨率 10 AI 实战零 console/page 错误（脚本：`tests/test-release-verification.mjs`，报告：`tests/release-verification-results.md`）
+- 注：游戏页面为 `/play`（`index.html` 是 SEO 落地页）；旧 `test-browser-node.mjs` 访问 `index.html` 从未真跑通，新脚本已走 `/play`
+- 待办：Firefox/WebKit（`npx playwright install firefox webkit` → `npm run test:release:all`）；移动端基础兼容
 
-### 性能测试
-- 10个AI同场竞技保持60FPS
-- 粒子系统压力测试（1000+粒子）
-- 内存泄漏检测
+### 性能测试 ✅ 10 AI 帧率部分完成（2026-09-04 实测）
+- 10 个 AI 同场竞技：headless 软件渲染下各分辨率平均 FPS 61+、最低 60、无 <30fps 掉段（真机 GPU 预期更稳）
+- 粒子系统压力测试：`test-optimization.js` 既有通过
+- 内存泄漏检测：连续 6 局 `startMatch`，tanks 恒 11 / bullets / trackMarks 无逐局递增，无运行时错误
+- 待办：heap 字节指标（`page.metrics` 在部分环境取不到，已加 `performance.memory` 回退，待复测）
 
 ---
 
