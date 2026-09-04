@@ -74,3 +74,7 @@ canvas{
 }
 .menu-btn.show{display:block}
 .menu-btn:active{transform:translateX(-50%) scale(0.96)}
+
+/* 返回首页小型导航（play.html，指令 §4.2） */
+.back-home{position:fixed;top:10px;right:10px;z-index:9999;background:rgba(0,0,0,0.55);color:#f0f0f0;font:12px/1 'Segoe UI','Microsoft YaHei',sans-serif;padding:6px 10px;border:1px solid rgba(255,255,255,0.2);border-radius:6px;text-decoration:none;transition:background .2s}
+.back-home:hover{background:rgba(25,25,30,0.85);color:#fff}

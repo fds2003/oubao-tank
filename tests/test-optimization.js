@@ -91,7 +91,10 @@ test('F2-ricochet-reflect', '跳弹应反射且子弹不消失',
     const ai = g.tanks[1]; ai.x = 200; ai.y = 200; ai.dirKey = 'right'; ai.hp = 100; ai.maxHp = 100; ai.invuln = 0;
     const pl = g.tanks[0]; pl.x = 80; pl.y = 200;
     g.physics.RICOCHET_ANGLE = 10; // 强制触发跳弹
-    const b = new Bullet(pl, 205, 222, 'left', { damage: 35 });
+    // 命中点取 ~43° 斜向入射（相对 ai 面朝 right）：
+    // 避开 60°~120° 侧面履带区（避免 TRACK_STUN_CHANCE=0.3 随机断履带导致 flaky），
+    // 一次 update 后 x≈220、y=219 → dx≈20、dy=19，命中角≈43° 稳定触发跳弹
+    const b = new Bullet(pl, 227, 219, 'left', { damage: 35 });
     b.update(0.016, g);
     if (b.dead) return '跳弹后子弹被销毁(应反射存活)';
     if (!(b.dir.x !== -1 || b.dir.y !== 0)) return '子弹方向未改变(未反射)';

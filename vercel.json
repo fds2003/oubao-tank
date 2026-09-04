@@ -1,5 +1,13 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
-  "installCommand": ""
+  "installCommand": "",
+  "rewrites": [
+    { "source": "/play", "destination": "/play.html" },
+    { "source": "/tank-battle-guide", "destination": "/tank-battle-guide.html" },
+    { "source": "/classic-tank-games", "destination": "/classic-tank-games.html" },
+    { "source": "/2-player-tank-game", "destination": "/2-player-tank-game.html" },
+    { "source": "/about", "destination": "/about.html" },
+    { "source": "/privacy", "destination": "/privacy.html" }
+  ]
 }

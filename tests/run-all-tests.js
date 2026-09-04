@@ -18,6 +18,9 @@ const files = [
   'test-tdd-bugfixes.js',
   'test-bgm.js',
   'test-optimization.js',
+  'test-site-contract.js',
+  'test-site-audit.js',
+  'test-http-routes.js',
   'integration-test.js'
 ];
 

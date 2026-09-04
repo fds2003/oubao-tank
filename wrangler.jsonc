@@ -1,0 +1,22 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "oubao-tank",
+  "compatibility_date": "2026-08-31",
+  "observability": {
+    "enabled": true
+  },
+  "assets": {
+    "directory": ".",
+    "exclude": [
+      "node_modules/**",
+      "tests/**",
+      "*.md",
+      "package*.json",
+      "server.js",
+      "wrangler.jsonc",
+      ".gitignore",
+      "BUG_REPORT.md",
+      "DEVPLAN.md"
+    ]
+  }
+}
