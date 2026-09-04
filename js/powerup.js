@@ -185,28 +185,21 @@ class Mine{
 function applyPower(game,tank,type){
  const info=POWER_TYPES[type];
  if(type==='freeze'){
-  if(game.gameMode===0||game.gameMode===2){
-   let count=0;
-   for(const t of game.tanks){
-    if(t===tank||!t.alive)continue;
-    if(t.team===tank.team)continue;
-    count++;
-   }
-   const dur=count>0?Math.max(0.6,2.2/Math.sqrt(count)):0;
-   for(const t of game.tanks){
-    if(t===tank||!t.alive)continue;
-    if(t.team===tank.team)continue;
-     t.buff.freeze=dur;
-   }
-   AudioSys.freeze();
-   game.parts.text(tank.x,tank.y-30,'全屏冰冻！','#9ad8ff');
-  }else{
-   const other=game.tanks[1-tank.id];
-    other.buff.freeze=2.2;
-   AudioSys.freeze();
-   game.parts.spark(other.x,other.y,'#cfeaff',12,150);
-   game.parts.text(other.x,other.y-30,'冰冻！',info.color);
+  let count=0;
+  for(const t of game.tanks){
+   if(t===tank||!t.alive)continue;
+   if(t.team===tank.team)continue;
+   count++;
   }
+  const dur=count>0?Math.max(0.6,2.2/Math.sqrt(count)):0;
+  for(const t of game.tanks){
+   if(t===tank||!t.alive)continue;
+   if(t.team===tank.team)continue;
+   t.buff.freeze=dur;
+  }
+  AudioSys.freeze();
+  if(count>1)game.parts.text(tank.x,tank.y-30,'全屏冰冻！','#9ad8ff');
+  else game.parts.text(tank.x,tank.y-30,'冰冻！',info.color);
   return;
  }
  if(type==='heal'){   tank.hp=Math.min(tank.maxHp||HP_MAX,tank.hp+CONFIG.HEAL_AMOUNT);

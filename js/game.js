@@ -225,7 +225,7 @@ class Game{
   for(const p of this.powerups)for(const t of this.tanks)
     if(!p.picked&&t.alive&&dist(p.x,p.y,t.x,t.y)<CONFIG.POWERUP_PICKUP_RANGE){p.picked=true;applyPower(this,t,p.type);if(t.isPlayer)this._checkCombo(p.type);if(t.collectedPowerups&&t.collectedPowerups.indexOf(p.type)===-1)t.collectedPowerups.push(p.type);}
    filterInPlace(this.powerups,p=>!p.picked);
-  if(this.gameMode===0||this.gameMode===3||this.gameMode===4){
+  if(this.gameMode===0||this.gameMode===3||this.gameMode===4||this.gameMode===5){
    const pDead=!this.tanks[0].alive,aiDead=this.tanks.slice(1).every(t=>!t.alive);
    // 特殊模式额外胜利条件
    let specialWin=null;
@@ -279,7 +279,11 @@ class Game{
    if(this.comboNotify[i].timer<=0)this.comboNotify.splice(i,1);
   }
   this.fade=lerp(this.fade,this.fadeTarget,dt*6);
-  if(Input.pressed('KeyM'))AudioSys.toggleMute();
+  if(Input.pressed('KeyM')){
+   AudioSys.toggleMute();
+   const bgm=this.bgm;
+   if(bgm){(AudioSys.muted?bgm.mute():bgm.unmute());}
+  }
   if(this.tutorial.state==='active'){
    this.tutorial.update(dt);
    const pBtns=(Input.gamepads&&Input.gamepads[0]&&Input.gamepads[0].btns)||{};

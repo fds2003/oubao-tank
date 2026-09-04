@@ -27,7 +27,8 @@ const mimes = {
   '.wav': 'audio/wav',
   '.ico': 'image/x-icon',
   '.xml': 'application/xml',
-  '.txt': 'text/plain; charset=utf-8'
+  '.txt': 'text/plain; charset=utf-8',
+  '.svg': 'image/svg+xml'
 };
 
 const server = http.createServer((req, res) => {
@@ -39,6 +40,12 @@ const server = http.createServer((req, res) => {
     rel = aliases[url];
   } else {
     rel = url.slice(1); // 去掉开头的 '/'
+  }
+  // 路径穿越防护：拒绝任何 '..' 段
+  if (rel.indexOf('..') !== -1) {
+    res.writeHead(400);
+    res.end('Bad request');
+    return;
   }
   const fp = path.join(root, rel);
   if (!fs.existsSync(fp) || !fs.statSync(fp).isFile()) {

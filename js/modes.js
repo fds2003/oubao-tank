@@ -114,7 +114,7 @@ var BaseDefense = (function(){
    for (const hq of [this.playerHQ, this.enemyHQ]) {
     for (let r = hq.r; r < hq.r + hq.size; r++)
      for (let c = hq.c; c < hq.c + hq.size; c++)
-      world.set(c, r, '.');
+      world.destroyBrick(c, r); // 同步擦除离屏静态缓存，基地废墟不再透出残留砖块
    }
    // 同步剔除草地预渲染列表
    if (world.grassCells) {

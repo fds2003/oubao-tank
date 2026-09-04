@@ -25,10 +25,10 @@ const Input={
    const targetCanvas=canvas||document.getElementById('game');
    if(!targetCanvas)return;
    const rect=targetCanvas.getBoundingClientRect();
-   const scaleX=VIEW_W/(rect.width||VIEW_W);
-   const scaleY=VIEW_H/(rect.height||VIEW_H);
-   this.mouse.x=(e.clientX-rect.left)*scaleX;
-   this.mouse.y=(e.clientY-rect.top)*scaleY;
+   const scale=Math.min((rect.width||VIEW_W)/VIEW_W,(rect.height||VIEW_H)/VIEW_H);
+   const offX=(rect.width-VIEW_W*scale)/2,offY=(rect.height-VIEW_H*scale)/2;
+   this.mouse.x=(e.clientX-rect.left-offX)/scale;
+   this.mouse.y=(e.clientY-rect.top-offY)/scale;
    this.mouse.active=true;
   };
   this._mm=e=>updateMousePos(e);
