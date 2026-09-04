@@ -4,6 +4,7 @@ node_modules/
 # 工具产物
 .freebuff/
 .playwright-mcp/
+.codegraph/
 
 # 测试运行产物
 tests/integration-results.json
