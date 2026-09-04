@@ -120,9 +120,8 @@ class Game{
   startMatch(i){
    this.mapIdx=i;this.scores=[0,0];this.roundNum=1;
    this.matchWinner=-1;
-   // gameMode 3=基地保卫战, 4=护送装甲车, 5=车长同乘 使用1+AI配置
-   const isSpecialMode=this.gameMode===3||this.gameMode===4||this.gameMode===5;
-   const n=this.gameMode===1?2:(this.gameMode===2?2+this.aiCount:(isSpecialMode?1+this.aiCount:1+this.aiCount));
+   // gameMode 1=双人对战(2人)；2=协作(2玩家+AI)；其余(0/3/4/5)=1玩家+AI
+   const n=this.gameMode===1?2:(this.gameMode===2?2+this.aiCount:1+this.aiCount);
    this.matchStats=[];for(let j=0;j<n;j++)this.matchStats.push({shots:0,hits:0,dmg:0});
    this.fade=0;this.fadeTarget=1;
    // 初始化特殊模式（BaseDefense 的创建移到 startRound 内，避免 s1 未定义）
@@ -130,8 +129,8 @@ class Game{
    this.startRound();
  }
  spawnAI(id,spawnPt,color,name,playerClass){
-  // 菜单选择难度优先（AI 实际难度与玩家选择一致）
-  const aiDiff=DIFF_LIST[this.aiDifficulty]||this.dynamicDifficulty.getEffectiveDifficulty();
+  // 动态难度生效：菜单 Q 选择已通过 setDifficulty 同步为基准，此后按胜负浮动
+  const aiDiff=this.dynamicDifficulty.getEffectiveDifficulty();
   const aiClass=selectAITankClass(aiDiff,playerClass);
   const spawnAt=(tc,tr)=>{
    const t=new Tank(id,{c:tc,r:tr,face:'left',color,name,keys:{up:0,down:0,left:0,right:0,fire:[]}},this,aiClass);
@@ -268,16 +267,9 @@ class Game{
   this.shake=Math.max(0,this.shake-dt*16);
   if(this.damageFlash>0&&dt>0)this.damageFlash=Math.max(0,this.damageFlash-dt);
   if(this.hitmarker>0&&dt>0)this.hitmarker=Math.max(0,this.hitmarker-dt);
-  // 成就通知计时
-  for(let i=this.achievementNotify.length-1;i>=0;i--){
-   this.achievementNotify[i].timer-=dt;
-   if(this.achievementNotify[i].timer<=0)this.achievementNotify.splice(i,1);
-  }
-  // 组合通知计时
-  for(let i=this.comboNotify.length-1;i>=0;i--){
-   this.comboNotify[i].timer-=dt;
-   if(this.comboNotify[i].timer<=0)this.comboNotify.splice(i,1);
-  }
+  // 成就与组合通知计时（统一使用 filterInPlace 原地压缩，消除 GC 抖动）
+  filterInPlace(this.achievementNotify, item => (item.timer -= dt) > 0);
+  filterInPlace(this.comboNotify, item => (item.timer -= dt) > 0);
   this.fade=lerp(this.fade,this.fadeTarget,dt*6);
   if(Input.pressed('KeyM')){
    AudioSys.toggleMute();
@@ -295,12 +287,9 @@ class Game{
   switch(this.state){
    case'menu':{
     const pBtns=(Input.gamepads&&Input.gamepads[0]&&Input.gamepads[0].btns)||{};
-    if(Input.pressed('Digit1','Numpad1'))this.gameMode=0;
-    if(Input.pressed('Digit2','Numpad2'))this.gameMode=1;
-    if(Input.pressed('Digit3','Numpad3'))this.gameMode=2;
-    if(Input.pressed('Digit4','Numpad4'))this.gameMode=3; // 基地保卫战
-    if(Input.pressed('Digit5','Numpad5'))this.gameMode=4; // 护送装甲车
-    if(Input.pressed('Digit6','Numpad6'))this.gameMode=5; // 车长同乘模式
+    for(let m=0;m<6;m++){
+     if(Input.pressed('Digit'+(m+1),'Numpad'+(m+1))){this.gameMode=m;break;}
+    }
     if(Input.mousePressed()){
      const mx=Input.mouse.x,my=Input.mouse.y;
      const CX=VIEW_W/2,btnW=100,btnH=36,btnGap=6,btnX=CX-(6*(btnW+btnGap)-btnGap)/2;
@@ -318,7 +307,11 @@ class Game{
     if(Input.pressed('KeyC')||(pBtns.lb&&!this._padLbLast)){this.tankClassIndex=(this.tankClassIndex-1+this.tankClassList.length)%this.tankClassList.length;this.playerTankClass=this.tankClassList[this.tankClassIndex];}
     if(Input.pressed('KeyV')||(pBtns.rb&&!this._padRbLast)){this.tankClassIndex=(this.tankClassIndex+1)%this.tankClassList.length;this.playerTankClass=this.tankClassList[this.tankClassIndex];}
     if(this.gameMode===0||this.gameMode===2||this.gameMode===5){
-     if(Input.pressed('KeyQ')||(pBtns.y&&!this._padYLast))this.aiDifficulty=(this.aiDifficulty+1)%3;
+     if(Input.pressed('KeyQ')||(pBtns.y&&!this._padYLast)){
+      this.aiDifficulty=(this.aiDifficulty+1)%3;
+      // 菜单手动选难度作为动态难度基准（此后仍按胜负浮动）
+      this.dynamicDifficulty.setDifficulty(this.aiDifficulty);
+     }
      if(Input.pressed('KeyZ'))this.aiCount=Math.max(1,this.aiCount-1);
      if(Input.pressed('KeyX')||(pBtns.x&&!this._padXLast))this.aiCount=Math.min(10,this.aiCount+1);
     }
@@ -567,21 +560,29 @@ class Game{
   ctx.beginPath();ctx.arc(0,0,100+(1-q)*80,0,7);ctx.stroke();
   ctx.restore();
  }
+ getWinnerInfo(winnerIdx){
+  if(winnerIdx<0)return{name:'平局',color:'#c7d0de'};
+  if(this.gameMode===2){
+   const pWin=winnerIdx===0;
+   return{name:pWin?'玩家阵营':'AI 阵营',color:pWin?'#38bdf8':'#ff8c42'};
+  }
+  if(this.gameMode===0||this.gameMode===3||this.gameMode===4||this.gameMode===5){
+   const pWin=winnerIdx===0;
+   return{name:pWin?'玩家':'AI 阵营',color:pWin?'#38bdf8':'#ff8c42'};
+  }
+  const t=this.tanks[winnerIdx];
+  return{name:t?t.name:'玩家 '+(winnerIdx+1),color:t?t.color:'#ffd23f'};
+ }
  drawRoundBanner(ctx){
   const a=Math.min(1,this.bannerT/0.4);
   ctx.fillStyle='rgba(4,6,10,'+(0.6*a)+')';ctx.fillRect(FIELD_X,FIELD_Y,FIELD_W,FIELD_H);
   ctx.textAlign='center';ctx.textBaseline='middle';
   const cy=FIELD_Y+FIELD_H/2;
-  if(this.roundWinner<0){ctx.globalAlpha=a;ctx.font='bold 60px '+FONT;ctx.fillStyle='#c7d0de';ctx.fillText('平 局 ！',VIEW_W/2,cy-24);}
-  else{
-   let msg,color;
-   if(this.gameMode===0||this.gameMode===3||this.gameMode===4){msg=this.roundWinner===0?'玩家 得分！':'AI 阵营 得分！';color=this.roundWinner===0?'#38bdf8':'#ff8c42';}
-   else if(this.gameMode===2){msg=this.roundWinner===0?'玩家阵营 得分！':'AI 阵营 得分！';color=this.roundWinner===0?'#38bdf8':'#ff8c42';}
-   else{msg=this.tanks[this.roundWinner].name+' 得分！';color=this.tanks[this.roundWinner].color;}
-   ctx.globalAlpha=a;ctx.font='bold 60px '+FONT;ctx.fillStyle=color;ctx.shadowColor=color;ctx.shadowBlur=26;
-   ctx.fillText(msg,VIEW_W/2,cy-24);ctx.shadowBlur=0;
-  }
-  ctx.font='bold 38px '+FONT;ctx.fillStyle='#8fa0bd';ctx.globalAlpha=a;
+  const win=this.getWinnerInfo(this.roundWinner);
+  ctx.globalAlpha=a;ctx.font='bold 60px '+FONT;ctx.fillStyle=win.color;
+  if(this.roundWinner>=0){ctx.shadowColor=win.color;ctx.shadowBlur=26;}
+  ctx.fillText(win.name+(this.roundWinner<0?' ！':' 得分！'),VIEW_W/2,cy-24);ctx.shadowBlur=0;
+  ctx.font='bold 38px '+FONT;ctx.fillStyle='#8fa0bd';
   ctx.fillText(this.scores[0]+'  :  '+this.scores[1],VIEW_W/2,cy+34);
   ctx.font='18px '+FONT;ctx.fillStyle='#525d70';ctx.fillText('下一局即将开始…',VIEW_W/2,cy+78);
   ctx.globalAlpha=1;
@@ -594,15 +595,11 @@ class Game{
  }
  drawMatchEnd(ctx){
   ctx.fillStyle='rgba(4,6,10,0.82)';ctx.fillRect(0,0,VIEW_W,VIEW_H);
-  let winName,winColor;
-  if(this.gameMode===0||this.gameMode===3||this.gameMode===4){winName=this.matchWinner===0?'玩家':'AI 阵营';winColor=this.matchWinner===0?'#38bdf8':'#ff8c42';}
-  else if(this.gameMode===2){winName=this.matchWinner===0?'玩家阵营':'AI 阵营';winColor=this.matchWinner===0?'#38bdf8':'#ff8c42';}
-  else{winName=this.tanks[this.matchWinner].name;winColor=this.tanks[this.matchWinner].color;}
+  const win=this.getWinnerInfo(this.matchWinner);
   this.drawCrownPath(ctx,VIEW_W/2,180,36,'#ffd23f');
   ctx.textAlign='center';ctx.textBaseline='middle';
-  ctx.font='bold 64px '+FONT;ctx.fillStyle=winColor;ctx.shadowColor=winColor;ctx.shadowBlur=30;
-  ctx.fillText(winName+' 获胜！',VIEW_W/2,260);ctx.shadowBlur=0;
-  ctx.font='bold 34px '+FONT;ctx.fillStyle='#8fa0bd';
+  ctx.font='bold 64px '+FONT;ctx.fillStyle=win.color;ctx.shadowColor=win.color;ctx.shadowBlur=30;
+  ctx.fillText(win.name+' 获胜！',VIEW_W/2,260);ctx.shadowBlur=0;
   ctx.fillText(this.scores[0]+' : '+this.scores[1],VIEW_W/2,316);
   const pw=700,ph=220,px=VIEW_W/2-pw/2,py=360;
   ctx.fillStyle='rgba(12,16,24,0.92)';rr(ctx,px,py,pw,ph,14);ctx.fill();
@@ -651,8 +648,7 @@ class Game{
   ctx.shadowColor='#38bdf8';ctx.shadowBlur=20;ctx.fillText('暂 停',VIEW_W/2,VIEW_H/2-24);ctx.shadowBlur=0;
   ctx.font='20px '+FONT;ctx.fillStyle='#7a8599';ctx.fillText('P 继续 · Esc 返回菜单',VIEW_W/2,VIEW_H/2+32);
  }
- drawMenu(ctx){
-  const t=this.menuT,CX=VIEW_W/2;
+ _drawMenuHeader(ctx, CX, t){
   ctx.save();ctx.globalAlpha=0.07;
   drawTankBody(ctx,((t*55)%(VIEW_W+120))-60,VIEW_H*0.12,'right','#38bdf8',t*55,0);
   drawTankBody(ctx,VIEW_W-(((t*70)%(VIEW_W+120))-60),VIEW_H*0.18,'left','#ff8c42',t*70,0);
@@ -663,6 +659,8 @@ class Game{
   ctx.fillText('坦 克 大 战',CX,68);ctx.shadowBlur=0;
   ctx.font='bold 16px '+FONT;ctx.fillStyle='#5a6478';
   ctx.fillText('OUBAO TANK ARENA · 本地对战',CX,104);
+ }
+ _drawModeButtons(ctx, CX){
   const modeNames=['单人 [1]','双人 [2]','协作 [3]','基地 [4]','护送 [5]','同乘 [6]'];
   const btnW=100,btnH=36,btnGap=6,btnX=CX-(modeNames.length*(btnW+btnGap)-btnGap)/2;
   for(let m=0;m<modeNames.length;m++){
@@ -672,57 +670,57 @@ class Game{
    ctx.strokeStyle=sel?'#ffd23f':'#252d3d';ctx.lineWidth=1;rr(ctx,bx,128,btnW,btnH,6);ctx.stroke();ctx.shadowBlur=0;
    ctx.fillStyle=sel?'#0b0d12':'#7a8599';ctx.font='bold 13px '+FONT;
    ctx.fillText(modeNames[m],bx+btnW/2,128+btnH/2);
-  }   ctx.font='16px '+FONT;ctx.fillStyle='#5a6478';ctx.fillText('← → ↑ ↓ 选择地图',CX,188);
+  }
+  ctx.font='16px '+FONT;ctx.fillStyle='#5a6478';ctx.fillText('← → ↑ ↓ 选择地图',CX,188);
+ }
+ _drawMapGrid(ctx, CX){
   const tw=140,th=76,gap=10,perRow=6,rows2=2;
-   const gridW=perRow*tw+(perRow-1)*gap,gridX=CX-gridW/2,rowH=th+22,gridTop=206;
-   for(let i=0;i<MAP_DEFS.length;i++){
-    const on=i===this.mapIdx,col=i%perRow,row=Math.floor(i/perRow);
-    const ox=gridX+col*(tw+gap),oy=gridTop+row*rowH+(on?-3:0);
-    ctx.save();ctx.globalAlpha=on?1:0.45;
-    const pv=this.previews[i],sc=Math.min(tw/(COLS*8),th/(ROWS*8));
-    if(this._menuPreviews&&this._menuPreviews[i]){
-     ctx.drawImage(this._menuPreviews[i],ox,oy,tw,th);
-    }else{
-     for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
-      const ch=pv.grid[r][c];let col2='#121620';
-      if(ch==='B')col2='#8a3e1e';else if(ch==='S')col2='#5a6270';
-      else if(ch==='W')col2='#103050';else if(ch==='G')col2='#1e6830';
-      ctx.fillStyle=col2;ctx.fillRect(ox+c*sc*8,oy+r*sc*8,sc*8+0.5,sc*8+0.5);
-     }
+  const gridW=perRow*tw+(perRow-1)*gap,gridX=CX-gridW/2,rowH=th+22,gridTop=206;
+  for(let i=0;i<MAP_DEFS.length;i++){
+   const on=i===this.mapIdx,col=i%perRow,row=Math.floor(i/perRow);
+   const ox=gridX+col*(tw+gap),oy=gridTop+row*rowH+(on?-3:0);
+   ctx.save();ctx.globalAlpha=on?1:0.45;
+   const pv=this.previews[i],sc=Math.min(tw/(COLS*8),th/(ROWS*8));
+   if(this._menuPreviews&&this._menuPreviews[i]){
+    ctx.drawImage(this._menuPreviews[i],ox,oy,tw,th);
+   }else{
+    for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+     const ch=pv.grid[r][c];let col2='#121620';
+     if(ch==='B')col2='#8a3e1e';else if(ch==='S')col2='#5a6270';
+     else if(ch==='W')col2='#103050';else if(ch==='G')col2='#1e6830';
+     ctx.fillStyle=col2;ctx.fillRect(ox+c*sc*8,oy+r*sc*8,sc*8+0.5,sc*8+0.5);
     }
-    ctx.fillStyle='#38bdf8';ctx.beginPath();ctx.arc(ox+pv.spawns[0].c*sc*8+sc*4,oy+pv.spawns[0].r*sc*8+sc*4,3,0,7);ctx.fill();
-    ctx.fillStyle='#ff8c42';ctx.beginPath();ctx.arc(ox+pv.spawns[1].c*sc*8+sc*4,oy+pv.spawns[1].r*sc*8+sc*4,3,0,7);ctx.fill();
-    ctx.restore();
+   }
+   ctx.fillStyle='#38bdf8';ctx.beginPath();ctx.arc(ox+pv.spawns[0].c*sc*8+sc*4,oy+pv.spawns[0].r*sc*8+sc*4,3,0,7);ctx.fill();
+   ctx.fillStyle='#ff8c42';ctx.beginPath();ctx.arc(ox+pv.spawns[1].c*sc*8+sc*4,oy+pv.spawns[1].r*sc*8+sc*4,3,0,7);ctx.fill();
+   ctx.restore();
    if(on){ctx.shadowColor='#ffd23f';ctx.shadowBlur=12;}
    ctx.strokeStyle=on?'#ffd23f':'#1e2636';ctx.lineWidth=on?2:1;
    ctx.strokeRect(ox-2,oy-2,tw+4,th+4);ctx.shadowBlur=0;
    ctx.font=on?'bold 13px '+FONT:'12px '+FONT;ctx.fillStyle=on?'#ffd23f':'#4a5468';
    ctx.fillText(MAP_DEFS[i].name,ox+tw/2,oy+th+14);
   }
-  const gridBot=gridTop+rows2*rowH+14;
-  // AI难度和数量（单人/协作模式）
-  let aiCtrlH=0;
-  if(this.gameMode===0||this.gameMode===2||this.gameMode===5){
-   const ay=gridBot+4,diffNames=['简单','普通','困难'],diffColors=['#5dff70','#ffd23f','#ff5d5d'];
-   // 难度按钮居中排列，间距更大
-   const btnW=72,btnGap=12,diffTotalW=3*btnW+2*btnGap;
-   const diffStartX=CX-diffTotalW/2;
-   for(let i=0;i<3;i++){
-    const dx=diffStartX+i*(btnW+btnGap),sel=this.aiDifficulty===i;
-    ctx.fillStyle=sel?diffColors[i]:'rgba(22,28,40,0.95)';rr(ctx,dx,ay,btnW,30,6);ctx.fill();
-    ctx.strokeStyle=sel?diffColors[i]:'#252d3d';rr(ctx,dx,ay,btnW,30,6);ctx.stroke();
-    ctx.fillStyle=sel?'#0b0d12':'#5a6478';ctx.font='bold 15px '+FONT;ctx.textAlign='center';
-    ctx.fillText(diffNames[i],dx+btnW/2,ay+15);
-   }
-   // 数量在右侧独立区域
-   const countX=CX+diffTotalW/2+40;
-   ctx.textAlign='left';ctx.font='16px '+FONT;ctx.fillStyle='#7a8599';ctx.fillText('数量',countX,ay+16);
-   ctx.fillStyle='#ffd23f';ctx.font='bold 28px '+FONT;ctx.textAlign='center';ctx.fillText(this.aiCount,countX+55,ay+14);
-   ctx.font='13px '+FONT;ctx.fillStyle='#3a4255';ctx.fillText('[Q] 难度   [Z−] [X+] 数量',CX,ay+48);
-   aiCtrlH=60;
+  return gridTop+rows2*rowH+14;
+ }
+ _drawAiControls(ctx, CX, gridBot){
+  if(this.gameMode!==0&&this.gameMode!==2&&this.gameMode!==5)return 0;
+  const ay=gridBot+4,diffNames=['简单','普通','困难'],diffColors=['#5dff70','#ffd23f','#ff5d5d'];
+  const btnW=72,btnGap=12,diffTotalW=3*btnW+2*btnGap;
+  const diffStartX=CX-diffTotalW/2;
+  for(let i=0;i<3;i++){
+   const dx=diffStartX+i*(btnW+btnGap),sel=this.aiDifficulty===i;
+   ctx.fillStyle=sel?diffColors[i]:'rgba(22,28,40,0.95)';rr(ctx,dx,ay,btnW,30,6);ctx.fill();
+   ctx.strokeStyle=sel?diffColors[i]:'#252d3d';rr(ctx,dx,ay,btnW,30,6);ctx.stroke();
+   ctx.fillStyle=sel?'#0b0d12':'#5a6478';ctx.font='bold 15px '+FONT;ctx.textAlign='center';
+   ctx.fillText(diffNames[i],dx+btnW/2,ay+15);
   }
-  // 车型选择
-  const classY=gridBot+aiCtrlH+4;
+  const countX=CX+diffTotalW/2+40;
+  ctx.textAlign='left';ctx.font='16px '+FONT;ctx.fillStyle='#7a8599';ctx.fillText('数量',countX,ay+16);
+  ctx.fillStyle='#ffd23f';ctx.font='bold 28px '+FONT;ctx.textAlign='center';ctx.fillText(this.aiCount,countX+55,ay+14);
+  ctx.font='13px '+FONT;ctx.fillStyle='#3a4255';ctx.fillText('[Q] 难度   [Z−] [X+] 数量',CX,ay+48);
+  return 60;
+ }
+ _drawClassSelector(ctx, CX, classY){
   ctx.font='16px '+FONT;ctx.fillStyle='#7a8599';ctx.textAlign='center';
   ctx.fillText('选择车型 [C/V]',CX,classY+12);
   const classW=120,classGap=15,totalW=this.tankClassList.length*classW+(this.tankClassList.length-1)*classGap;
@@ -738,8 +736,9 @@ class Game{
    ctx.font='11px '+FONT;ctx.fillStyle=sel?'#0b0d12':'#5a6478';
    ctx.fillText('HP:'+cls.hp+' 速:'+cls.speed,cx+classW/2,classY+55);
   }
-  const classH=78;
-  const ctrlY=gridBot+aiCtrlH+classH+8;
+  return 78;
+ }
+ _drawControlsSection(ctx, CX, ctrlY){
   const pw=320;
   if(this.gameMode===0)this.drawControlPanel(ctx,CX-pw/2,ctrlY,pw,'操作说明','#38bdf8',[['移动','W A S D'],['开火','F / 空格'],['暂停 P · 静音 M','']]);
   else if(this.gameMode===5){
@@ -752,8 +751,8 @@ class Game{
    this.drawControlPanel(ctx,CX-pw-10,ctrlY,pw,'玩家 1','#38bdf8',[['移动','WASD'],['开火','F / 空格']]);
    this.drawControlPanel(ctx,CX+10,ctrlY,pw,'玩家 2','#ff8c42',[['移动','方向键'],['开火','L / 回车']]);
   }
-  const ctrlH=28+(this.gameMode===0?3:2)*26+10;
-  const infoY=ctrlY+ctrlH+14;
+ }
+ _drawMenuFooter(ctx, CX, t, infoY){
   ctx.font='15px '+FONT;ctx.fillStyle='#4a5468';
   ctx.fillText('先胜'+WIN_ROUNDS+'局 · 砖墙可碎 · 钢墙无敌 · 水面阻坦克 · 草丛藏身',CX,infoY);
   const items=Object.keys(POWER_TYPES),pGap=120,iy=infoY+32;
@@ -768,7 +767,18 @@ class Game{
   ctx.globalAlpha=pa;ctx.font='bold 28px '+FONT;ctx.fillStyle='#ffd23f';
   ctx.shadowColor='#ff8c42';ctx.shadowBlur=16;ctx.fillText(hasPad?'按 A / 回车 开始战斗':'按 回车 开始战斗',CX,startY);ctx.shadowBlur=0;
   ctx.globalAlpha=1;ctx.font='14px '+FONT;ctx.fillStyle='#3a4255';ctx.fillText('M 静音  L 排行榜',CX,startY+26);
-  // 排行榜覆盖层
+ }
+ drawMenu(ctx){
+  const t=this.menuT,CX=VIEW_W/2;
+  this._drawMenuHeader(ctx,CX,t);
+  this._drawModeButtons(ctx,CX);
+  const gridBot=this._drawMapGrid(ctx,CX);
+  const aiH=this._drawAiControls(ctx,CX,gridBot);
+  const classH=this._drawClassSelector(ctx,CX,gridBot+aiH+4);
+  const ctrlY=gridBot+aiH+classH+8;
+  this._drawControlsSection(ctx,CX,ctrlY);
+  const ctrlH=28+(this.gameMode===0?3:2)*26+10;
+  this._drawMenuFooter(ctx,CX,t,ctrlY+ctrlH+14);
   if(this.showLeaderboard)this.drawLeaderboard(ctx);
  }
   _renderPreviewCanvas(pv){

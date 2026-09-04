@@ -16,7 +16,12 @@
       "wrangler.jsonc",
       ".gitignore",
       "BUG_REPORT.md",
-      "DEVPLAN.md"
+      "DEVPLAN.md",
+      ".codeartsdoer/**",
+      ".codegraph/**",
+      ".freebuff/**",
+      ".playwright-browsers/**",
+      "test-screenshots/**"
     ]
   }
 }

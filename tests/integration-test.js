@@ -173,13 +173,31 @@ test('S07', '[BUG] 坦克带 slow 减速 buff 时 HUD 绘制不崩溃', () => {
   return true;
 });
 
-test('S08', '[BUG] 菜单 Q 选择困难后 AI 实际难度为 hard', () => {
+test('S08', '菜单 Q 选择困难后 AI 实际难度为 hard（setDifficulty 基准同步）', () => {
   const g = newGame(0, 2);
   g.aiDifficulty = 2; // 菜单选"困难"
+  g.dynamicDifficulty.setDifficulty(2); // 模拟菜单 Q 键处理（同步动态难度基准）
   enterPlay(g);
   const d = g.tanks[1].ai.diff;
   if (d === 'hard') return true;
   return 'AI 实际难度=' + d + '（菜单选择未生效，AI 使用动态难度默认值）';
+});
+
+test('S08b', '动态难度接通：菜单默认(普通)时连胜3局后 AI 难度升为 hard', () => {
+  const g = newGame(0, 2);
+  // 菜单未手动选难度，基准为默认 normal
+  enterPlay(g);
+  const dd = g.dynamicDifficulty;
+  if (dd.getEffectiveDifficulty() !== 'normal') return '初始难度=' + dd.getEffectiveDifficulty() + '（应为 normal）';
+  // 连胜 3 局：达到 streakThreshold 升档
+  for (let i = 0; i < 3; i++) {
+    g.tanks[0].alive = true;
+    g.tanks.slice(1).forEach(t => { t.alive = false; });
+    g.updatePlay(0.016); // 触发 recordWin
+  }
+  const eff = dd.getEffectiveDifficulty();
+  if (eff === 'hard') return true;
+  return '连胜3局后难度=' + eff + '（期望 hard）';
 });
 
 test('S09', '[BUG] 玩家败北后动态难度应降低(记录失败)', () => {

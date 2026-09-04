@@ -58,10 +58,13 @@ function waitForServer(proc, triesLeft = 50) {
 }
 
 async function main() {
-  const proc = spawn('node', ['server.js'], {
+  // 用 process.execPath 而非 'node'：Windows 上 PATH 中的 node.cmd/node.shim.exe 会包一层包装进程，
+  // proc.kill() 杀不到真正的 node.exe 导致孤儿进程；execPath 直接指向真实 node.exe
+  const proc = spawn(process.execPath, ['server.js'], {
     cwd: ROOT,
     env: { ...process.env, PORT: String(PORT) },
-    stdio: ['ignore', 'ignore', 'inherit']
+    // 全部 ignore：不让子进程继承 stderr 管道（否则 stdout 被管道捕获时父进程退出后管道不关闭，测试挂起）
+    stdio: ['ignore', 'ignore', 'ignore']
   });
 
   try {

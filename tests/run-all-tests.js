@@ -18,6 +18,7 @@ const files = [
   'test-tdd-bugfixes.js',
   'test-bgm.js',
   'test-optimization.js',
+  'test-simplification-refactor.js',
   'test-site-contract.js',
   'test-site-audit.js',
   'test-http-routes.js',
@@ -43,7 +44,8 @@ function runNext() {
   const file = files[completed];
   console.log(`\n[运行] ${file}`);
 
-  const proc = spawn('node', ['tests/' + file], {
+  // 用 process.execPath 而非 'node'：Windows 上 PATH 中的 node.cmd shim 会导致子进程异常
+  const proc = spawn(process.execPath, ['tests/' + file], {
     cwd: process.cwd(),
     stdio: 'inherit'
   });

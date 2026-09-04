@@ -128,12 +128,19 @@ class Tank{
    const megaDmg=mega?1.2:1;
    const baseDmg=this.baseDamage||NORMAL_DMG;
    const baseCd=this.baseCooldown||COOLDOWN;
-   // 应用组合伤害加成
+   // 应用组合伤害加成（倍率以 combos.js 的 effect.damageMultiplier 为唯一来源）
    let comboDmgMult=1;
    if(this.game.comboSystem){
-    if(this.game.comboSystem.hasCombo('boss'))comboDmgMult=1.5;
-    else if(this.game.comboSystem.hasCombo('icefire'))comboDmgMult=1.3;
-    else if(this.game.comboSystem.hasCombo('ghost_combo'))comboDmgMult=1.2;
+    const boss=this.game.comboSystem.getEffect('boss');
+    if(boss)comboDmgMult=boss.damageMultiplier;
+    else{
+     const icefire=this.game.comboSystem.getEffect('icefire');
+     if(icefire)comboDmgMult=icefire.damageMultiplier;
+     else{
+      const ghost=this.game.comboSystem.getEffect('ghost_combo');
+      if(ghost)comboDmgMult=ghost.damageMultiplier;
+     }
+    }
    }
    if(scatter){
     const spread=[-0.35,0,0.35];
@@ -222,36 +229,23 @@ class Tank{
     if(this.ai){
      this.ai.update(dt);
      const cmd=this.ai.getCommand();want=cmd.dir;firing=cmd.fire;
-   }else if(this.game&&this.game.gameMode===5&&this.isPlayer){
-    // 车长同乘模式：P1 键盘/手柄驾驶，P2 鼠标/手柄瞄准与开火
-    const k=this.keys;
-    if(Input.down(k.up))want='up';
-    else if(Input.down(k.down))want='down';
-    else if(Input.down(k.left))want='left';
-    else if(Input.down(k.right))want='right';
-    if(padDir)want=padDir;
-    if(padAim!==null){
-     this.turretAngle=padAim;
-    }else{
-     const canvasTankX=this.x+FIELD_X;
-     const canvasTankY=this.y+FIELD_Y;
-     const m=Input.mouse;
-     const dx=m.x-canvasTankX,dy=m.y-canvasTankY;
-     if(dx!==0||dy!==0){
-      this.turretAngle=Math.atan2(dy,dx);
-     }
+    } else {
+      const k = this.keys;
+      want = this._getInputDir(k, padDir);
+      if (this.game && this.game.gameMode === 5 && this.isPlayer) {
+        if (padAim !== null) {
+          this.turretAngle = padAim;
+        } else {
+          const m = Input.mouse;
+          const dx = m.x - (this.x + FIELD_X), dy = m.y - (this.y + FIELD_Y);
+          if (dx !== 0 || dy !== 0) this.turretAngle = Math.atan2(dy, dx);
+        }
+        firing = Input.down(...k.fire) || Input.down('Enter', 'KeyL') || Input.mouseDown() || padFire;
+      } else {
+        if (padAim !== null) this.turretAngle = padAim;
+        firing = Input.down(...k.fire) || padFire;
+      }
     }
-    firing=Input.down(...k.fire)||Input.down('Enter','KeyL')||Input.mouseDown()||padFire;
-   }else{
-    const k=this.keys;
-    if(Input.down(k.up))want='up';
-    else if(Input.down(k.down))want='down';
-    else if(Input.down(k.left))want='left';
-    else if(Input.down(k.right))want='right';
-    if(padDir)want=padDir;
-    if(padAim!==null)this.turretAngle=padAim;
-    firing=Input.down(...k.fire)||padFire;
-   }
    if(want&&want!==this.dirKey)this.turn(want);
    let moved=false;
     if(want){
@@ -338,4 +332,13 @@ class Tank{
    }
   }
  }
+
+  _getInputDir(k, padDir) {
+    if (padDir) return padDir;
+    if (Input.down(k.up)) return 'up';
+    if (Input.down(k.down)) return 'down';
+    if (Input.down(k.left)) return 'left';
+    if (Input.down(k.right)) return 'right';
+    return null;
+  }
 }
