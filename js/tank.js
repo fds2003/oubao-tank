@@ -88,32 +88,66 @@ class Tank{
   this.cool=0;this.recoil=0;this.tread=0;this.invuln=2;
   this.stats=this.game.matchStats[id];
    this.buff={shield:0,speed:0,rapid:0,power:0,freeze:0,ghost:0,mega:0,scatter:0,slow:0};
-  this.inGrass=false;
+   this.ghostGraceTimer=0;
+   this.inGrass=false;
    this._lastBuffKeys=[];
  }
  get dir(){return DIRS[this.dirKey];}
  get face(){return this.dirKey;}
-   fits(x,y){
-    const l=x-TANK_HALF,t=y-TANK_HALF,r=x+TANK_HALF,b=y+TANK_HALF;
-    if(l<0||t<0||r>=FIELD_W||b>=FIELD_H)return false;
-    if(this.buff.ghost>0)return true;
-    const c0=Math.floor(l/CELL),c1=Math.floor((r-EPS)/CELL);
-    const r0=Math.floor(t/CELL),r1=Math.floor((b-EPS)/CELL);
-    for(let cc=c0;cc<=c1;cc++)for(let cr=r0;cr<=r1;cr++)
-     if(this.game.world.solidTank(cc,cr))return false;
-    return true;
- }
- turn(want){
-  const vert=want==='up'||want==='down';
-  const target=v=>Math.round((v-CELL/2)/CELL)*CELL+CELL/2;
-  const sx=this.x,sy=this.y;
-  if(vert)this.x=target(this.x);else this.y=target(this.y);
-  if(!this.fits(this.x,this.y)){this.x=sx;this.y=sy;}
-  this.dirKey=want;
-  if(!(this.game&&this.game.gameMode===5&&this.isPlayer)){
-   this.turretAngle=DIRS[want].a;
+  isTerrainClear(x,y){
+   const l=x-TANK_HALF,t=y-TANK_HALF,r=x+TANK_HALF,b=y+TANK_HALF;
+   if(l<0||t<0||r>=FIELD_W||b>=FIELD_H)return false;
+   const c0=Math.floor(l/CELL),c1=Math.floor((r-EPS)/CELL);
+   const r0=Math.floor(t/CELL),r1=Math.floor((b-EPS)/CELL);
+   for(let cc=c0;cc<=c1;cc++)for(let cr=r0;cr<=r1;cr++)
+    if(this.game.world.solidTank(cc,cr))return false;
+   return true;
   }
- }
+  fits(x,y){
+   const l=x-TANK_HALF,t=y-TANK_HALF,r=x+TANK_HALF,b=y+TANK_HALF;
+   if(l<0||t<0||r>=FIELD_W||b>=FIELD_H)return false;
+   if(this.buff.ghost>0||this.ghostGraceTimer>0)return true;
+   return this.isTerrainClear(x,y);
+  }
+  ejectToSafePosition(){
+   const curC=Math.floor(this.x/CELL),curR=Math.floor(this.y/CELL);
+   let bestX=null,bestY=null,bestDist=Infinity;
+   for(let rad=1;rad<=5;rad++){
+    for(let dc=-rad;dc<=rad;dc++){
+     for(let dr=-rad;dr<=rad;dr++){
+      if(Math.abs(dc)!==rad&&Math.abs(dr)!==rad)continue;
+      const nc=curC+dc,nr=curR+dr;
+      if(nc<0||nc>=COLS||nr<0||nr>=ROWS)continue;
+      const tx=nc*CELL+CELL/2,ty=nr*CELL+CELL/2;
+      if(this.isTerrainClear(tx,ty)){
+       const d=Math.hypot(tx-this.x,ty-this.y);
+       if(d<bestDist){bestDist=d;bestX=tx;bestY=ty;}
+      }
+     }
+    }
+    if(bestX!==null)break;
+   }
+   if(bestX!==null){
+    this.x=bestX;this.y=bestY;
+    if(this.game&&this.game.parts){
+     this.game.parts.ring(this.x,this.y,'#c89dff',40,3,0.4);
+     this.game.parts.spark(this.x,this.y,'#ffffff',14,140);
+     if(this.isPlayer)this.game.parts.text(this.x,this.y-30,'脱困脱出！','#c89dff');
+    }
+    if(typeof AudioSys!=='undefined'&&AudioSys.thud)AudioSys.thud();
+   }
+  }
+  turn(want){
+   const vert=want==='up'||want==='down';
+   const target=v=>Math.round((v-CELL/2)/CELL)*CELL+CELL/2;
+   const sx=this.x,sy=this.y;
+   if(vert)this.x=target(this.x);else this.y=target(this.y);
+   if(!this.fits(this.x,this.y)){this.x=sx;this.y=sy;}
+   this.dirKey=want;
+   if(!(this.game&&this.game.gameMode===5&&this.isPlayer)){
+    this.turretAngle=DIRS[want].a;
+   }
+  }
  tryMove(dx,dy){
   const nx=this.x+dx,ny=this.y+dy;
   if(!this.fits(nx,ny))return false;
@@ -201,9 +235,24 @@ class Tank{
    game.addShake(2);
   }
  }
- update(dt){
-  for(const k in this.buff)this.buff[k]=Math.max(0,this.buff[k]-dt);
-  this.invuln=Math.max(0,this.invuln-dt);
+  update(dt){
+   for(const k in this.buff)this.buff[k]=Math.max(0,this.buff[k]-dt);
+   // 穿墙脱困保护机制：若buff到期但车身仍位于不可通行地形内，给予宽限并允许继续移出
+   if(this.buff.ghost<=0){
+    if(!this.isTerrainClear(this.x,this.y)){
+     this.ghostGraceTimer+=dt;
+     if(this.ghostGraceTimer>=2.5){
+      // 超时仍未走出墙体（如挂机或被阻滞），应急弹射至最近安全空地
+      this.ejectToSafePosition();
+      this.ghostGraceTimer=0;
+     }
+    }else{
+     this.ghostGraceTimer=0;
+    }
+   }else{
+    this.ghostGraceTimer=0;
+   }
+   this.invuln=Math.max(0,this.invuln-dt);
   this.cool-=dt;
   this.recoil=Math.max(0,this.recoil-dt*26);
   // 同步组合系统：添加新buff / 移除过期buff
@@ -287,17 +336,18 @@ class Tank{
    ctx.translate(this.x,this.y);ctx.scale(finalScale,finalScale);
    drawTankBody(ctx,0,0,this.dirKey,this.color,this.tread,this.recoil,this.turretAngle);
    ctx.restore();
-  if(this.buff.ghost>0){
-   ctx.save();ctx.globalAlpha=0.18;
-   drawTankBody(ctx,this.x-12,this.y-8,this.dirKey,this.color,this.tread,this.recoil,this.turretAngle);
-   ctx.globalAlpha=0.12;
-   drawTankBody(ctx,this.x+12,this.y+8,this.dirKey,this.color,this.tread,this.recoil,this.turretAngle);
-   ctx.restore();
-   ctx.save();ctx.globalAlpha=0.25;
-   ctx.strokeStyle='#c89dff';ctx.lineWidth=1.5;ctx.setLineDash([5,5]);ctx.lineDashOffset=-time*30;
-   rr(ctx,this.x-TANK_HALF-4,this.y-TANK_HALF-4,TANK_SIZE+8,TANK_SIZE+8,10);ctx.stroke();
-   ctx.restore();
-  }
+   if(this.buff.ghost>0||this.ghostGraceTimer>0){
+    ctx.save();ctx.globalAlpha=this.ghostGraceTimer>0?(Math.sin(time*20)>0?0.25:0.08):0.18;
+    drawTankBody(ctx,this.x-12,this.y-8,this.dirKey,this.color,this.tread,this.recoil,this.turretAngle);
+    ctx.globalAlpha=this.ghostGraceTimer>0?(Math.sin(time*20)>0?0.18:0.05):0.12;
+    drawTankBody(ctx,this.x+12,this.y+8,this.dirKey,this.color,this.tread,this.recoil,this.turretAngle);
+    ctx.restore();
+    ctx.save();ctx.globalAlpha=0.35;
+    ctx.strokeStyle=this.ghostGraceTimer>0?'#ffaa44':'#c89dff';
+    ctx.lineWidth=1.5;ctx.setLineDash([5,5]);ctx.lineDashOffset=-time*30;
+    rr(ctx,this.x-TANK_HALF-4,this.y-TANK_HALF-4,TANK_SIZE+8,TANK_SIZE+8,10);ctx.stroke();
+    ctx.restore();
+   }
   if(this.buff.freeze>0){
    ctx.fillStyle='rgba(165,214,255,0.42)';
    rr(ctx,this.x-TANK_HALF,this.y-TANK_HALF,TANK_SIZE,TANK_SIZE,6);ctx.fill();
