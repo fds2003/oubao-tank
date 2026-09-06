@@ -4,8 +4,8 @@ const https = require('https');
 
 const data = JSON.stringify({
   host: 'fot.us.kg',
-  key: '42860fa8d06a43288b0598a1c676f76c',
-  keyLocation: 'https://fot.us.kg/42860fa8d06a43288b0598a1c676f76c.txt',
+  key: '3763fca8c10d4765bfa92deae8f0f898',
+  keyLocation: 'https://fot.us.kg/3763fca8c10d4765bfa92deae8f0f898.txt',
   urlList: [
     'https://fot.us.kg/',
     'https://fot.us.kg/tank-battle-guide',
